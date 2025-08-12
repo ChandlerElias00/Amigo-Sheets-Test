@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Amigo Hixson – Expenses Builder (Publishes to LocalStorage)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{ background:#0b1220; color:#e5e7eb; }
+    .card{ background:rgba(15,23,42,.75); border-radius:1rem; padding:1rem 1.25rem; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+    .btn{
+      padding: .5rem .75rem; border-radius:.75rem; border:1px solid rgb(51 65 85);
+      background:transparent; color:#e2e8f0; font-size:.875rem;
+      transition:background-color .15s, border-color .15s;
+    }
+    .btn:hover{ background:rgba(148,163,184,.08); border-color:rgb(71 85 105); }
+    .btn-primary{ border-color:rgb(37 99 235); }
+    .btn-primary:hover{ background:rgba(37,99,235,.15); }
+    .mini{ font-size:.75rem; color:rgb(148 163 184); }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0;}
+    input[type=number]{ -moz-appearance:textfield; }
+    .input{ background:#0f172a; border:1px solid rgb(51 65 85); border-radius:.75rem; padding:.5rem .65rem; width:100%; }
+    .row{ display:grid; grid-template-columns: 1fr 10ch 3ch; gap:.5rem; align-items:center; }
+    .row input[type=number]{ text-align:right; }
+    .pill{ border:1px solid rgb(51 65 85); padding:.3rem .55rem; border-radius:9999px; font-size:.75rem; }
+    .hr{ border-top:1px solid rgb(51 65 85); margin:1rem 0; }
+    .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size:.75rem; color:#cbd5e1;}
+    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .grid-3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
+    .sum{ font-weight:600; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-6xl mx-auto p-6 space-y-6">
+    <header class="flex items-start justify-between gap-3">
+      <div>
+        <h1 class="text-3xl font-bold">Expenses Builder</h1>
+        <p class="mini">Craft your expense picture here, then <span class="font-semibold">Publish</span> to feed the main model.</p>
+        <p class="mini mt-1">Writes to <span class="kbd">amigo_expense_totals_v1</span> and <span class="kbd">amigo_expense_details_v1</span> in <span class="kbd">localStorage</span>.</p>
+      </div>
+      <div class="flex flex-wrap gap-2 shrink-0">
+        <a class="btn" href="./index.html">← Back to Profit Projection</a>
+        <button id="btnLoadDraft" class="btn">Load Draft</button>
+        <button id="btnSaveDraft" class="btn">Save Draft</button>
+        <button id="btnClearPublished" class="btn">Clear Published</button>
+        <button id="btnPublish" class="btn btn-primary">Publish</button>
+      </div>
+    </header>
+
+    <!-- Status -->
+    <section class="card">
+      <div class="grid-3 items-start">
+        <div>
+          <div class="mini">Published fixed totals</div>
+          <div id="lblTotals" class="text-lg font-semibold">—</div>
+        </div>
+        <div>
+          <div class="mini">Last published</div>
+          <div id="lblUpdated" class="text-lg font-semibold">—</div>
+        </div>
+        <div class="text-right">
+          <div class="mini">Draft status</div>
+          <div id="lblDraft" class="text-lg font-semibold">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fixed costs -->
+    <section class="card">
+      <h2 class="text-xl font-semibold mb-2">Fixed Costs (Monthly)</h2>
+      <div class="grid-2">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-semibold">Essential</div>
+            <button class="btn" id="addEss">+ Add row</button>
+          </div>
+          <div id="listEss" class="space-y-2"></div>
+          <div class="hr"></div>
+          <div class="flex items-center justify-between">
+            <div class="mini">Total Essential</div>
+            <div id="totalEss" class="sum">$0</div>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-semibold">Non-Essential</div>
+            <button class="btn" id="addNon">+ Add row</button>
+          </div>
+          <div id="listNon" class="space-y-2"></div>
+          <div class="hr"></div>
+          <div class="flex items-center justify-between">
+            <div class="mini">Total Non-Essential</div>
+            <div id="totalNon" class="sum">$0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Taxes & Fees -->
+    <section class="card">
+      <h2 class="text-xl font-semibold mb-2">Taxes & Fees (Percentages)</h2>
+      <div class="grid-4 grid-2">
+        <div>
+          <label class="mini">Sales Tax %</label>
+          <input id="salesTax" class="input" type="number" min="0" max="30" step="0.05" value="9.25">
+        </div>
+        <div>
+          <label class="mini">LBD % (Liquor)</label>
+          <input id="lbd" class="input" type="number" min="0" max="25" step="0.25" value="15">
+        </div>
+        <div>
+          <label class="mini">CC Rate %</label>
+          <input id="ccRate" class="input" type="number" min="0" max="10" step="0.05" value="2.2">
+        </div>
+        <div>
+          <label class="mini">% of Sales on CC</label>
+          <input id="ccShare" class="input" type="number" min="0" max="100" step="1" value="85">
+        </div>
+      </div>
+    </section>
+
+    <!-- Labor -->
+    <section class="card">
+      <h2 class="text-xl font-semibold mb-2">Labor (Weekly)</h2>
+      <div class="grid-2 items-start">
+        <div class="space-y-3">
+          <div>
+            <label class="mini">FOH Payroll (weekly)</label>
+            <input id="foh" class="input" type="number" min="0" max="30000" step="50" value="6000">
+          </div>
+          <div>
+            <label class="mini">BOH Payroll (weekly)</label>
+            <input id="boh" class="input" type="number" min="0" max="30000" step="50" value="6816.83">
+          </div>
+          <div>
+            <label class="mini">Managers Payroll (weekly)</label>
+            <input id="mgr" class="input" type="number" min="0" max="20000" step="50" value="0">
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="includeManagers" type="checkbox" class="accent-slate-300" checked>
+            <label class="mini">Include Managers in payroll calc</label>
+          </div>
+          <div>
+            <label class="mini">Weekly Payroll Tax (all roles)</label>
+            <input id="weeklyTax" class="input" type="number" min="0" max="15000" step="10" value="0">
+          </div>
+          <div>
+            <label class="mini">Payroll Cycles this month</label>
+            <input id="cycles" class="input" type="number" min="0" max="6" step="1" value="2">
+          </div>
+        </div>
+        <div class="space-y-2">
+          <div class="pill inline-block">Live preview</div>
+          <div class="hr"></div>
+          <div class="flex items-center justify-between">
+            <div class="mini">Weekly Base (incl. mgrs if checked)</div>
+            <div id="prevWeekBase" class="sum">$0</div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="mini">Weekly + Tax</div>
+            <div id="prevWeekTotal" class="sum">$0</div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="mini">Monthly (× cycles)</div>
+            <div id="prevMonth" class="sum">$0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer actions -->
+    <section class="card">
+      <div class="flex flex-wrap gap-2 items-center justify-between">
+        <div class="mini">Tip: Use <span class="kbd">Publish</span> to push numbers to the main page. Draft just saves your work-in-progress here.</div>
+        <div class="flex flex-wrap gap-2">
+          <button id="btnLoadDraft2" class="btn">Load Draft</button>
+          <button id="btnSaveDraft2" class="btn">Save Draft</button>
+          <button id="btnClearPublished2" class="btn">Clear Published</button>
+          <button id="btnPublish2" class="btn btn-primary">Publish</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <template id="tmplRow">
+    <div class="row">
+      <input type="text" class="input desc" placeholder="Description (e.g., Rent)" />
+      <input type="number" class="input amt" min="0" step="1" value="0" />
+      <button type="button" class="btn del" title="Remove">×</button>
+    </div>
+  </template>
+
+  <script>
+    // Storage keys (must match main page)
+    const LS_TOTALS = 'amigo_expense_totals_v1';     // { essential, nonessential, updatedAt }
+    const LS_DETAILS = 'amigo_expense_details_v1';   // rich payload for fixed/taxes/fees/labor
+    const LS_DRAFT  = 'amigo_expense_builder_draft_v1';
+
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => Number(n||0).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0});
+    const money2 = (n) => Number(n||0).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
+
+    // --- Fixed rows ---
+    const listEss = $('listEss');
+    const listNon = $('listNon');
+    const tmpl = $('tmplRow');
+
+    function addRow(parent, name='', amount=0){
+      const node = tmpl.content.cloneNode(true);
+      const row  = node.querySelector('.row');
+      const desc = node.querySelector('.desc');
+      const amt  = node.querySelector('.amt');
+      const del  = node.querySelector('.del');
+      desc.value = name;
+      amt.value = Number(amount||0);
+      const onChange = ()=>{ recalc(); saveDraftDebounced(); };
+      desc.addEventListener('input', onChange);
+      amt.addEventListener('input', onChange);
+      del.addEventListener('click', ()=>{ row.remove(); recalc(); saveDraftDebounced(); });
+      parent.appendChild(node);
+    }
+
+    function totalFrom(parent){
+      let sum = 0;
+      parent.querySelectorAll('.amt').forEach(a=>{
+        const v = parseFloat(a.value);
+        if(isFinite(v)) sum += v;
+      });
+      return sum;
+    }
+
+    // Defaults (you can edit/remove these)
+    function seedDefaultsIfEmpty(){
+      if(!listEss.children.length){
+        addRow(listEss,'Rent', 10000);
+        addRow(listEss,'Utilities', 1500);
+        addRow(listEss,'Insurance', 800);
+      }
+      if(!listNon.children.length){
+        addRow(listNon,'Marketing', 2000);
+        addRow(listNon,'Decor', 500);
+      }
+    }
+
+    // --- Taxes / Fees / Labor ---
+    const els = {
+      salesTax: $('salesTax'),
+      lbd: $('lbd'),
+      ccRate: $('ccRate'),
+      ccShare: $('ccShare'),
+      foh: $('foh'),
+      boh: $('boh'),
+      mgr: $('mgr'),
+      includeManagers: $('includeManagers'),
+      weeklyTax: $('weeklyTax'),
+      cycles: $('cycles'),
+      prevWeekBase: $('prevWeekBase'),
+      prevWeekTotal: $('prevWeekTotal'),
+      prevMonth: $('prevMonth'),
+      totalEss: $('totalEss'),
+      totalNon: $('totalNon'),
+      lblTotals: $('lblTotals'),
+      lblUpdated: $('lblUpdated'),
+      lblDraft: $('lblDraft'),
+    };
+
+    function laborPreview(){
+      const foh = Number(els.foh.value||0);
+      const boh = Number(els.boh.value||0);
+      const mgr = Number(els.mgr.value||0);
+      const include = els.includeManagers.checked;
+      const weeklyTax = Number(els.weeklyTax.value||0);
+      const cycles = Number(els.cycles.value||0);
+
+      const base = foh + boh + (include ? mgr : 0);
+      const week = base + weeklyTax;
+      const month = week * cycles;
+
+      els.prevWeekBase.textContent  = money2(base);
+      els.prevWeekTotal.textContent = money2(week);
+      els.prevMonth.textContent     = money2(month);
+    }
+
+    // --- Draft I/O ---
+    function captureDraft(){
+      return {
+        essentialItems: rowsToArray(listEss),
+        nonessentialItems: rowsToArray(listNon),
+        taxes: { salesTax: els.salesTax.value, lbd: els.lbd.value },
+        fees:  { ccRate: els.ccRate.value, ccShare: els.ccShare.value },
+        labor: {
+          foh: els.foh.value, boh: els.boh.value, mgr: els.mgr.value,
+          includeManagers: els.includeManagers.checked,
+          weeklyTax: els.weeklyTax.value, cycles: els.cycles.value
+        }
+      };
+    }
+
+    function rowsToArray(parent){
+      const rows = [];
+      parent.querySelectorAll('.row').forEach(r=>{
+        rows.push({
+          desc: r.querySelector('.desc').value || '',
+          amt: Number(r.querySelector('.amt').value||0)
+        });
+      });
+      return rows;
+    }
+
+    function applyDraft(d){
+      listEss.innerHTML=''; listNon.innerHTML='';
+      (d.essentialItems || []).forEach(it=> addRow(listEss, it.desc, it.amt));
+      (d.nonesentialItems || d.nonessentialItems || []).forEach(it=> addRow(listNon, it.desc, it.amt));
+      els.salesTax.value = d.taxes?.salesTax ?? els.salesTax.value;
+      els.lbd.value      = d.taxes?.lbd ?? els.lbd.value;
+      els.ccRate.value   = d.fees?.ccRate ?? els.ccRate.value;
+      els.ccShare.value  = d.fees?.ccShare ?? els.ccShare.value;
+      els.foh.value      = d.labor?.foh ?? els.foh.value;
+      els.boh.value      = d.labor?.boh ?? els.boh.value;
+      els.mgr.value      = d.labor?.mgr ?? els.mgr.value;
+      els.includeManagers.checked = d.labor?.includeManagers ?? els.includeManagers.checked;
+      els.weeklyTax.value = d.labor?.weeklyTax ?? els.weeklyTax.value;
+      els.cycles.value    = d.labor?.cycles ?? els.cycles.value;
+      recalc();
+    }
+
+    function saveDraft(){
+      localStorage.setItem(LS_DRAFT, JSON.stringify(captureDraft()));
+      els.lblDraft.textContent = 'Saved';
+    }
+    let draftTimer=null;
+    function saveDraftDebounced(){ clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 400); }
+
+    function loadDraft(){
+      const raw = localStorage.getItem(LS_DRAFT);
+      if(!raw){ els.lblDraft.textContent = 'No draft'; return; }
+      try{ const d = JSON.parse(raw); applyDraft(d); els.lblDraft.textContent = 'Loaded'; }
+      catch{ els.lblDraft.textContent = 'Draft corrupted'; }
+    }
+
+    // --- Publish ---
+    function publish(){
+      const ess = totalFrom(listEss);
+      const non = totalFrom(listNon);
+      const updatedAt = new Date().toISOString();
+
+      // Totals (backward compat for older main pages)
+      localStorage.setItem(LS_TOTALS, JSON.stringify({
+        essential: ess, nonessential: non, updatedAt
+      }));
+
+      // Rich details payload
+      const details = {
+        updatedAt,
+        fixed: { essential: ess, nonessential: non },
+        taxes: { salesTax: num(els.salesTax.value), lbd: num(els.lbd.value) },
+        fees:  { ccRate: num(els.ccRate.value), ccShare: num(els.ccShare.value) },
+        labor: {
+          foh: num(els.foh.value), boh: num(els.boh.value), mgr: num(els.mgr.value),
+          includeManagers: !!els.includeManagers.checked,
+          weeklyTax: num(els.weeklyTax.value),
+          cycles: num(els.cycles.value)
+        },
+        // Optional: include itemization for your records (main page ignores these)
+        items: {
+          essential: rowsToArray(listEss),
+          nonessential: rowsToArray(listNon)
+        }
+      };
+      localStorage.setItem(LS_DETAILS, JSON.stringify(details));
+
+      // UI
+      els.lblTotals.textContent = `${money(ess)} essential + ${money(non)} non-essential`;
+      els.lblUpdated.textContent = new Date(updatedAt).toLocaleString();
+      els.lblDraft.textContent = 'Published';
+    }
+
+    function clearPublished(){
+      localStorage.removeItem(LS_TOTALS);
+      localStorage.removeItem(LS_DETAILS);
+      els.lblTotals.textContent = '—';
+      els.lblUpdated.textContent = '—';
+      els.lblDraft.textContent = 'Cleared';
+    }
+
+    // --- Utils ---
+    function num(v){ const n = Number(v); return isFinite(n) ? n : 0; }
+    function recalc(){
+      const ess = totalFrom(listEss);
+      const non = totalFrom(listNon);
+      els.totalEss.textContent = money(ess);
+      els.totalNon.textContent = money(non);
+      laborPreview();
+    }
+    function hydratePublishedLabels(){
+      try{
+        const t = JSON.parse(localStorage.getItem(LS_TOTALS)||'null');
+        const d = JSON.parse(localStorage.getItem(LS_DETAILS)||'null');
+        if(t){
+          els.lblTotals.textContent = `${money(t.essential)} essential + ${money(t.nonesential ?? t.nonessential)} non-essential`;
+          els.lblUpdated.textContent = t.updatedAt ? new Date(t.updatedAt).toLocaleString() : (d?.updatedAt ? new Date(d.updatedAt).toLocaleString() : '—');
+        }else if(d){
+          els.lblTotals.textContent = `${money(d.fixed?.essential)} essential + ${money(d.fixed?.nonessential)} non-essential`;
+          els.lblUpdated.textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleString() : '—';
+        }else{
+          els.lblTotals.textContent = '—'; els.lblUpdated.textContent = '—';
+        }
+      }catch{ els.lblTotals.textContent = '—'; els.lblUpdated.textContent = '—'; }
+    }
+
+    // --- Wire up UI ---
+    $('addEss').addEventListener('click', ()=>{ addRow(listEss,'',0); });
+    $('addNon').addEventListener('click', ()=>{ addRow(listNon,'',0); });
+    ['salesTax','lbd','ccRate','ccShare','foh','boh','mgr','includeManagers','weeklyTax','cycles']
+      .forEach(id => $(id).addEventListener('input', ()=>{ recalc(); saveDraftDebounced(); }));
+
+    $('btnSaveDraft').addEventListener('click', saveDraft);
+    $('btnSaveDraft2').addEventListener('click', saveDraft);
+    $('btnLoadDraft').addEventListener('click', loadDraft);
+    $('btnLoadDraft2').addEventListener('click', loadDraft);
+    $('btnPublish').addEventListener('click', publish);
+    $('btnPublish2').addEventListener('click', publish);
+    $('btnClearPublished').addEventListener('click', clearPublished);
+    $('btnClearPublished2').addEventListener('click', clearPublished);
+
+    // --- Init ---
+    function init(){
+      seedDefaultsIfEmpty();
+      recalc();
+      hydratePublishedLabels();
+      const raw = localStorage.getItem(LS_DRAFT);
+      if(raw) els.lblDraft.textContent = 'Draft exists'; else els.lblDraft.textContent = 'No draft';
+    }
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Amigo Hixson – Profit Projection (Clean UI + Linked Expenses)</title>
+
+  <!-- Tailwind + Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* Clean numeric inputs */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .btn{
+      padding: 0.5rem 0.75rem; border-radius: 0.75rem;
+      border: 1px solid rgb(51 65 85); font-size: .875rem;
+      background: transparent; color: #e2e8f0; transition: background-color .15s, border-color .15s;
+    }
+    .btn:hover{ background: rgba(148,163,184,.08); border-color: rgb(71 85 105); }
+    .muted{ color: rgb(148 163 184); }
+    .ctl label{ font-size:.8rem; color: rgb(148 163 184); }
+
+    /* Range/Number paired layout */
+    .pair{ display:flex; align-items:center; gap:.5rem; }
+    .pair input[type=range]{ flex:1 1 auto; min-width:0; }
+    .pair input[type=number]{ flex:0 0 auto; text-align:right; }
+
+    /* Small vs large numeric inputs */
+    .num{ width:8ch; }
+    .num-wide{ width:auto; min-width:12ch; }
+
+    /* Tiny checkbox pills */
+    .chk{ display:flex; align-items:center; gap:.5rem; padding:.35rem .5rem; border:1px solid rgb(51 65 85); border-radius:.65rem; }
+    .chk input{ accent-color:#cbd5e1; }
+
+    /* Cards */
+    .card{ background-color: rgba(15,23,42,.7); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .card h2{ font-size:1.25rem; font-weight:600; margin-bottom:.75rem; }
+
+    /* Tabs for charts */
+    .tab-btn[aria-selected="true"]{ background-color: rgb(30 41 59); color: white; }
+    .mini{ font-size: .75rem; }
+    .input{ background-color: rgb(30 41 59); border-radius: .75rem; padding: .5rem .75rem; }
+    .input::placeholder{ color: rgb(148 163 184); }
+    .mono{ font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+    /* Prevent Chart.js doughnuts from reflowing themselves */
+    .chart-wrap{ position: relative; }
+    .chart-wrap canvas{
+      display: block !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Collapsible sections (details/summary) */
+    details > summary{
+      list-style: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .5rem .75rem;
+      border: 1px solid rgb(51 65 85);
+      border-radius: .75rem;
+      background: rgba(30,41,59,.7);
+    }
+    details[open] > summary{ background: rgba(51,65,85,.55); }
+    summary::-webkit-details-marker{ display:none; }
+    .twist::after{
+      content: "▸"; margin-left: .5rem; transition: transform .15s ease;
+      color: rgb(148 163 184);
+    }
+    details[open] .twist::after{ transform: rotate(90deg); }
+
+    /* Panel controls hidden unless their chart tab is active */
+    .chart-controls{ display:none; }
+    .chart-controls.active{ display:block; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
+  <div class="max-w-7xl mx-auto p-6 space-y-6">
+    <header class="mb-2">
+      <h1 class="text-3xl font-bold tracking-tight">Profit Projection</h1>
+      <p class="text-slate-300 mt-1">Cleaner layout. Most menus tucked away. Expenses can sync from the builder page.</p>
+    </header>
+
+    <!-- KPIs -->
+    <section class="grid md:grid-cols-6 gap-4">
+      <div class="bg-slate-900/60 rounded-2xl p-4 shadow"><div class="text-sm text-slate-400">Monthly Sales</div><div id="kpiSales" class="text-2xl font-semibold">$151,000</div></div>
+      <div class="bg-slate-900/60 rounded-2xl p-4 shadow"><div class="text-sm text-slate-400">Variable Costs</div><div id="kpiVariable" class="text-2xl font-semibold">$0</div></div>
+      <div class="bg-slate-900/60 rounded-2xl p-4 shadow"><div class="text-sm text-slate-400">Fixed + Payroll</div><div id="kpiFixedPayroll" class="text-2xl font-semibold">$0</div></div>
+      <div class="bg-slate-900/60 rounded-2xl p-4 shadow"><div class="text-sm text-slate-400">Total Expenses</div><div id="kpiTotalExp" class="text-2xl font-semibold">$0</div></div>
+      <div class="bg-slate-900/60 rounded-2xl p-4 shadow"><div class="text-sm text-slate-400">Projected Profit</div><div id="kpiProfit" class="text-2xl font-semibold">$0</div></div>
+      <div class="bg-slate-900/60 rounded-2xl p-4 shadow"><div class="text-sm text-slate-400">Break-Even Sales</div><div id="kpiBreakeven" class="text-2xl font-semibold">—</div></div>
+    </section>
+
+    <div class="grid lg:grid-cols-3 gap-6 items-start">
+      <!-- Column: Controls (collapsible) -->
+      <div class="space-y-6">
+        <!-- Revenue -->
+        <div class="card">
+          <details open>
+            <summary><span class="twist"></span><span class="font-semibold">Revenue</span><span class="text-slate-400 text-sm" id="revSummary"></span></summary>
+            <div class="mt-4 space-y-5">
+              <div class="ctl">
+                <label class="flex justify-between mb-1"><span>Monthly Sales</span><span id="salesLbl">$151,000</span></label>
+                <div class="pair">
+                  <input id="sales" type="range" min="50000" max="300000" step="500" value="151000">
+                  <input id="salesN" type="number" min="50000" max="300000" step="500" value="151000" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="ctl">
+                  <label class="flex justify-between mb-1"><span>Beverage % of sales</span><span id="pctBevLbl">6.5%</span></label>
+                  <div class="pair">
+                    <input id="pctBev" type="range" min="0" max="30" step="0.1" value="6.5">
+                    <input id="pctBevN" type="number" min="0" max="100" step="0.1" value="6.5" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                  </div>
+                </div>
+                <div class="ctl">
+                  <label class="flex justify-between mb-1"><span>Beer % of sales</span><span id="pctBeerLbl">4%</span></label>
+                  <div class="pair">
+                    <input id="pctBeer" type="range" min="0" max="30" step="0.1" value="4">
+                    <input id="pctBeerN" type="number" min="0" max="100" step="0.1" value="4" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                  </div>
+                </div>
+                <div class="ctl">
+                  <label class="flex justify-between mb-1"><span>Liquor % of sales</span><span id="pctLiqLbl">7%</span></label>
+                  <div class="pair">
+                    <input id="pctLiq" type="range" min="0" max="30" step="0.1" value="7">
+                    <input id="pctLiqN" type="number" min="0" max="100" step="0.1" value="7" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                  </div>
+                </div>
+                <div class="ctl">
+                  <label class="flex justify-between mb-1"><span>Food % of sales</span><span id="pctFoodLbl">78%</span></label>
+                  <div class="pair">
+                    <input id="pctFood" type="range" min="40" max="100" step="0.5" value="78">
+                    <input id="pctFoodN" type="number" min="0" max="100" step="0.5" value="78" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                  </div>
+                </div>
+              </div>
+              <p class="text-xs text-slate-400">Mix auto-normalizes to 100%.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- COGS -->
+        <div class="card">
+          <details>
+            <summary><span class="twist"></span><span class="font-semibold">COGS & Add-ons</span><span class="text-slate-400 text-sm" id="cogsSummary"></span></summary>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+              <div class="ctl">
+                <label class="flex justify-between mb-1"><span>Beverage COG%</span><span id="cogBevLbl">20%</span></label>
+                <div class="pair">
+                  <input id="cogBev" type="range" min="0" max="80" step="0.5" value="20">
+                  <input id="cogBevN" type="number" min="0" max="100" step="0.5" value="20" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                </div>
+              </div>
+              <div class="ctl">
+                <label class="flex justify-between mb-1"><span>Beer COG%</span><span id="cogBeerLbl">40%</span></label>
+                <div class="pair">
+                  <input id="cogBeer" type="range" min="0" max="90" step="0.5" value="40">
+                  <input id="cogBeerN" type="number" min="0" max="100" step="0.5" value="40" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                </div>
+              </div>
+              <div class="ctl">
+                <label class="flex justify-between mb-1"><span>Liquor COG%</span><span id="cogLiqLbl">20%</span></label>
+                <div class="pair">
+                  <input id="cogLiq" type="range" min="0" max="80" step="0.5" value="20">
+                  <input id="cogLiqN" type="number" min="0" max="100" step="0.5" value="20" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                </div>
+              </div>
+              <div class="ctl">
+                <label class="flex justify-between mb-1"><span>Food COG%</span><span id="cogFoodLbl">30%</span></label>
+                <div class="pair">
+                  <input id="cogFood" type="range" min="0" max="100" step="0.5" value="30">
+                  <input id="cogFoodN" type="number" min="0" max="100" step="0.5" value="30" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                </div>
+              </div>
+              <div class="ctl col-span-2">
+                <label class="flex justify-between mb-1"><span>Non-Food as % of Food COGS</span><span id="nonFoodPctLbl">20%</span></label>
+                <div class="pair">
+                  <input id="nonFoodPct" type="range" min="0" max="100" step="0.5" value="20">
+                  <input id="nonFoodPctN" type="number" min="0" max="100" step="0.5" value="20" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Expense Breakdown (merged) -->
+        <div class="card">
+          <details>
+            <summary><span class="twist"></span><span class="font-semibold">Expense Breakdown</span>
+              <span class="text-slate-400 text-sm" id="expenseSummary"></span>
+            </summary>
+
+            <div class="mt-4 space-y-4">
+              <!-- Links / Pull options -->
+              <div class="flex flex-wrap gap-2 items-center">
+                <a href="./expenses.html" class="btn">Open Expenses Builder</a>
+                <button id="btnRefreshExpenses" class="btn">Refresh Published Totals</button>
+                <span class="mini muted" id="expStatus">No published totals found.</span>
+              </div>
+
+              <!-- Fixed Costs -->
+              <details>
+                <summary><span class="twist"></span><span class="font-semibold">Fixed Costs</span>
+                  <span class="text-slate-400 text-sm" id="fixedSummary"></span>
+                </summary>
+                <div class="mt-3 grid grid-cols-2 gap-4">
+                  <label class="flex items-center gap-2 text-sm col-span-2">
+                    <input id="useExpFixed" type="checkbox" class="accent-slate-300"> Pull fixed totals from Expenses builder
+                  </label>
+                  <div class="bg-slate-900/50 rounded-xl p-3">
+                    <div class="text-slate-400">Essential (mo)</div>
+                    <div id="expEssLbl" class="font-semibold">$0</div>
+                  </div>
+                  <div class="bg-slate-900/50 rounded-xl p-3">
+                    <div class="text-slate-400">Non-essential (mo)</div>
+                    <div id="expNonLbl" class="font-semibold">$0</div>
+                  </div>
+
+                  <div class="ctl col-span-2">
+                    <label class="flex justify-between mb-1"><span>Manual Essential (mo)</span><span id="fixedEssLbl">$18,000</span></label>
+                    <div class="pair">
+                      <input id="fixedEss" type="range" min="0" max="60000" step="250" value="18000">
+                      <input id="fixedEssN" type="number" min="0" max="60000" step="50" value="18000" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                    </div>
+                  </div>
+                  <div class="ctl col-span-2">
+                    <label class="flex justify-between mb-1"><span>Manual Non-Essential (mo)</span><span id="fixedNonLbl">$14,000</span></label>
+                    <div class="pair">
+                      <input id="fixedNon" type="range" min="0" max="60000" step="250" value="14000">
+                      <input id="fixedNonN" type="number" min="0" max="60000" step="50" value="14000" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <!-- Taxes & Fees -->
+              <details>
+                <summary><span class="twist"></span><span class="font-semibold">Taxes & Fees</span>
+                  <span class="text-slate-400 text-sm" id="taxSummary"></span>
+                </summary>
+                <div class="mt-3 grid grid-cols-2 gap-4">
+                  <label class="flex items-center gap-2 text-sm col-span-2">
+                    <input id="useExpTaxes" type="checkbox" class="accent-slate-300"> Pull taxes/fees from Expenses builder
+                  </label>
+                  <div class="ctl">
+                    <label class="flex justify-between mb-1"><span>Sales Tax %</span><span id="salesTaxLbl">9.25%</span></label>
+                    <div class="pair">
+                      <input id="salesTax" type="range" min="0" max="15" step="0.05" value="9.25">
+                      <input id="salesTaxN" type="number" min="0" max="30" step="0.05" value="9.25" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                    </div>
+                  </div>
+                  <div class="ctl">
+                    <label class="flex justify-between mb-1"><span>LBD % (Liquor)</span><span id="lbdLbl">15%</span></label>
+                    <div class="pair">
+                      <input id="lbd" type="range" min="0" max="25" step="0.25" value="15">
+                      <input id="lbdN" type="number" min="0" max="30" step="0.25" value="15" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                    </div>
+                  </div>
+                  <div class="ctl">
+                    <label class="flex justify-between mb-1"><span>CC Rate %</span><span id="ccRateLbl">2.2%</span></label>
+                    <div class="pair">
+                      <input id="ccRate" type="range" min="0" max="5" step="0.05" value="2.2">
+                      <input id="ccRateN" type="number" min="0" max="10" step="0.05" value="2.2" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                    </div>
+                  </div>
+                  <div class="ctl">
+                    <label class="flex justify-between mb-1"><span>% of Sales on CC</span><span id="ccShareLbl">85%</span></label>
+                    <div class="pair">
+                      <input id="ccShare" type="range" min="0" max="100" step="1" value="85">
+                      <input id="ccShareN" type="number" min="0" max="100" step="1" value="85" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <!-- Labor -->
+              <details>
+                <summary><span class="twist"></span><span class="font-semibold">Labor (weekly)</span>
+                  <span class="text-slate-400 text-sm" id="laborSummary"></span>
+                </summary>
+                <div class="mt-3 grid grid-cols-2 gap-4">
+                  <label class="flex items-center gap-2 text-sm col-span-2">
+                    <input id="useExpLabor" type="checkbox" class="accent-slate-300"> Pull labor from Expenses builder
+                  </label>
+                  <div class="col-span-2 flex items-center justify-between">
+                    <label class="flex items-center gap-2 text-sm"><input id="includeManagers" type="checkbox" class="accent-slate-300" checked> Include Managers</label>
+                    <div class="mini muted">Monthly payroll = (FOH + BOH + (Managers if included) + Weekly Payroll Tax) × Payroll Cycles</div>
+                  </div>
+                  <div class="ctl">
+                    <label class="flex justify-between mb-1"><span>FOH Payroll</span><span id="fohLbl">$6,000</span></label>
+                    <div class="pair">
+                      <input id="foh" type="range" min="0" max="30000" step="50" value="6000">
+                      <input id="fohN" type="number" min="0" max="30000" step="50" value="6000" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                    </div>
+                  </div>
+                  <div class="ctl">
+                    <label class="flex justify-between mb-1"><span>BOH Payroll</span><span id="bohLbl">$6,816.83</span></label>
+                    <div class="pair">
+                      <input id="boh" type="range" min="0" max="30000" step="50" value="6816.83">
+                      <input id="bohN" type="number" min="0" max="30000" step="50" value="6816.83" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                    </div>
+                  </div>
+                  <div class="ctl col-span-2">
+                    <label class="flex justify-between mb-1"><span>Managers Payroll (weekly)</span><span id="mgrLbl">$0</span></label>
+                    <div class="pair">
+                      <input id="mgr" type="range" min="0" max="20000" step="50" value="0">
+                      <input id="mgrN" type="number" min="0" max="20000" step="50" value="0" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                    </div>
+                  </div>
+                  <div class="ctl col-span-2">
+                    <label class="flex justify-between mb-1"><span>Weekly Payroll Tax (all roles)</span><span id="weeklyPayrollTaxLbl">$0.00</span></label>
+                    <div class="pair">
+                      <input id="weeklyPayrollTax" type="range" min="0" max="15000" step="50" value="0">
+                      <input id="weeklyPayrollTaxN" type="number" min="0" max="15000" step="10" value="0" class="bg-slate-800 rounded-xl px-3 py-2 num-wide" />
+                    </div>
+                  </div>
+                  <div class="ctl col-span-2">
+                    <label class="flex justify-between mb-1"><span>Payroll Cycles (this month)</span><span id="payrollPeriodsLbl">2</span></label>
+                    <div class="pair">
+                      <input id="payrollPeriods" type="range" min="0" max="6" step="1" value="2">
+                      <input id="payrollPeriodsN" type="number" min="0" max="6" step="1" value="2" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </details>
+        </div>
+
+        <!-- Scenario & Monthly Snapshots -->
+        <div class="card">
+          <details open>
+            <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Scenarios</span></summary>
+
+            <div class="mt-4 grid md:grid-cols-2 gap-4">
+              <div>
+                <div class="ctl">
+                  <label class="flex justify-between mb-1"><span>Target Profit ($)</span><span id="targetLbl">$0</span></label>
+                  <div class="pair">
+                    <input id="targetProfit" type="range" min="-50000" max="200000" step="500" value="0">
+                    <input id="targetProfitN" type="number" min="-50000" max="200000" step="500" value="0" class="bg-slate-800 rounded-xl px-3 py-2 num-wide"/>
+                  </div>
+                </div>
+                <button id="btnSolve" class="btn w-full mt-2">Solve Required Sales</button>
+                <div class="text-sm text-slate-400 mt-2" id="solveText"></div>
+              </div>
+              <div>
+                <label class="text-sm">Scenario slot
+                  <select id="scenarioSlot" class="w-full bg-slate-800 rounded-xl px-3 py-2 mt-1">
+                    <option value="A">Scenario A</option>
+                    <option value="B">Scenario B</option>
+                    <option value="C">Scenario C</option>
+                  </select>
+                </label>
+                <label class="text-sm block mt-2">Scenario name
+                  <input id="scenarioName" class="input w-full mt-1" placeholder="e.g., Tight labor, promo push" />
+                </label>
+                <div class="flex gap-2 mt-2">
+                  <button id="btnScenarioSave" class="btn flex-1">Save Current → Slot</button>
+                  <button id="btnScenarioLoad" class="btn flex-1">Load Slot → Current</button>
+                </div>
+                <div class="flex gap-2 mt-2">
+                  <button id="btnSave" class="btn flex-1">Save Model</button>
+                  <button id="btnReset" class="btn flex-1">Reset Model</button>
+                </div>
+                <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+              </div>
+            </div>
+
+            <hr class="border-slate-700 my-4" />
+
+            <div class="grid md:grid-cols-3 gap-3 items-start">
+              <div class="md:col-span-1">
+                <label class="text-sm">Snapshots year
+                  <select id="snapYear" class="w-full bg-slate-800 rounded-xl px-3 py-2 mt-1"></select>
+                </label>
+                <p class="mini muted mt-2">Save the current model to a month, then compare in the <em>Month Compare</em> chart tab.</p>
+              </div>
+              <div id="monthGrid" class="md:col-span-2 grid grid-cols-2 gap-2"></div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Column: Charts & Breakdown -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Charts -->
+        <div class="card">
+          <div class="flex flex-wrap gap-2 mb-3" role="tablist">
+            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="shares" aria-selected="true">Cost Shares</button>
+            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="mix">Category Mix</button>
+            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="waterfall">Waterfall</button>
+            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="tornado">Sensitivity (Tornado)</button>
+            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="compare">Scenario Compare</button>
+            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="monthCompare">Month Compare</button>
+          </div>
+          <div class="space-y-6">
+            <div data-panel="shares"><canvas id="sharesChart" height="260"></canvas></div>
+
+            <!-- wrapped doughnuts to prevent sliding -->
+            <div data-panel="mix" class="hidden grid md:grid-cols-2 gap-6">
+              <div>
+                <h3 class="font-semibold mb-2">Revenue Mix</h3>
+                <div class="chart-wrap h-64"><canvas id="mixChart"></canvas></div>
+              </div>
+              <div>
+                <h3 class="font-semibold mb-2">COGS by Category</h3>
+                <div class="chart-wrap h-64"><canvas id="cogsPie"></canvas></div>
+              </div>
+            </div>
+
+            <div data-panel="waterfall" class="hidden"><canvas id="waterfallChart" height="280"></canvas></div>
+            <div data-panel="tornado" class="hidden"><canvas id="tornadoChart" height="300"></canvas></div>
+            <div data-panel="compare" class="hidden"><canvas id="compareChart" height="240"></canvas></div>
+            <div data-panel="monthCompare" class="hidden"><canvas id="monthChart" height="240"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Tornado controls: shown ONLY when Tornado tab active -->
+        <div class="card chart-controls" data-controls-for="tornado">
+          <h2>Sensitivity (Tornado) Settings</h2>
+          <div class="grid md:grid-cols-3 gap-4 items-start">
+            <div class="md:col-span-1">
+              <div class="ctl">
+                <label class="flex justify-between mb-1"><span>Tornado swing (%)</span><span id="tornadoSwingLbl">10%</span></label>
+                <div class="pair">
+                  <input id="tornadoSwing" type="range" min="1" max="50" step="1" value="10">
+                  <input id="tornadoSwingN" type="number" min="1" max="50" step="1" value="10" class="bg-slate-800 rounded-xl px-3 py-2 num" />
+                </div>
+              </div>
+              <div class="flex gap-2 mt-2">
+                <button id="btnTornadoAll" class="btn flex-1">All</button>
+                <button id="btnTornadoNone" class="btn flex-1">None</button>
+              </div>
+            </div>
+            <div id="tornadoVarList" class="md:col-span-2 grid grid-cols-2 gap-2"></div>
+          </div>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="card">
+          <h2>Detailed Breakdown</h2>
+          <div class="grid md:grid-cols-3 gap-4 text-sm">
+            <div><div class="font-semibold mb-1">Revenue by Category</div><ul id="revList" class="space-y-1"></ul></div>
+            <div><div class="font-semibold mb-1">COGS</div><ul id="cogsList" class="space-y-1"></ul></div>
+            <div><div class="font-semibold mb-1">Taxes & Fees</div><ul id="feesList" class="space-y-1"></ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="mt-4 text-xs text-slate-500">Cleaner build. Collapsible menus. Expenses can sync from builder. Month snapshots saved locally.</footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const money = (n, d=0) => Number(n||0).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:d});
+    const pct = (n) => `${Number(n||0).toFixed(2).replace(/\\.00$/,'')}%`;
+    const toCSV = (rows) => rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\\n');
+
+    let inRecalc = false; // guard
+
+    /* ========= Expenses linking ========= */
+    const LS_TOTALS = 'amigo_expense_totals_v1';     // { essential, nonessential, updatedAt }
+    const LS_DETAILS = 'amigo_expense_details_v1';   // optional: richer payload
+    let expenseTotalsCache = null;
+    let expenseDetailsCache = null;
+
+    function loadExpenseTotals(){
+      try{
+        const raw = localStorage.getItem(LS_TOTALS);
+        if(!raw){ expenseTotalsCache = null; return null; }
+        const t = JSON.parse(raw);
+        expenseTotalsCache = { essential: Number(t.essential||0), nonessential: Number(t.nonessential||0), updatedAt: t.updatedAt||null };
+        return expenseTotalsCache;
+      }catch(e){ expenseTotalsCache = null; return null; }
+    }
+    function loadExpenseDetails(){
+      try{
+        const raw = localStorage.getItem(LS_DETAILS);
+        if(!raw){ expenseDetailsCache = null; return null; }
+        const d = JSON.parse(raw);
+        // Normalize numbers
+        const n = (v)=> (v==null?null:Number(v));
+        expenseDetailsCache = {
+          updatedAt: d.updatedAt||null,
+          fixed: { essential: n(d.fixed?.essential), nonessential: n(d.fixed?.nonessential) },
+          taxes: { salesTax: n(d.taxes?.salesTax), lbd: n(d.taxes?.lbd) },
+          fees:  { ccRate: n(d.fees?.ccRate), ccShare: n(d.fees?.ccShare) },
+          labor: { foh: n(d.labor?.foh), boh: n(d.labor?.boh), mgr: n(d.labor?.mgr), includeManagers: !!d.labor?.includeManagers, weeklyTax: n(d.labor?.weeklyTax), cycles: n(d.labor?.cycles) }
+        };
+        return expenseDetailsCache;
+      }catch(e){ expenseDetailsCache = null; return null; }
+    }
+    function updateExpenseUI(){
+      // show published fixed totals (from LS_TOTALS or details.fixed)
+      const t = expenseTotalsCache || loadExpenseTotals();
+      const d = expenseDetailsCache || loadExpenseDetails();
+
+      const ess = (d?.fixed?.essential ?? t?.essential) || 0;
+      const non = (d?.fixed?.nonessential ?? t?.nonessential) || 0;
+
+      $('expEssLbl').textContent = money(ess);
+      $('expNonLbl').textContent = money(non);
+
+      if(d?.updatedAt || t?.updatedAt){
+        $('expStatus').textContent = 'Published ' + new Date(d?.updatedAt || t?.updatedAt).toLocaleString();
+      }else{
+        $('expStatus').textContent = 'No published totals found.';
+      }
+
+      clampManualStates();
+    }
+
+    /* ========= Input pairing ========= */
+    function autosizeWide(el){
+      if(!el.classList.contains('num-wide')) return;
+      const len = (el.value || el.placeholder || '').length;
+      el.style.minWidth = Math.max(12, len + 2) + 'ch';
+    }
+    function autosizeAllWide(){ document.querySelectorAll('input.num-wide').forEach(autosizeWide); }
+
+    function bindPair(rangeEl, numberEl, onChange) {
+      // range -> number
+      rangeEl.addEventListener('input', () => { numberEl.value = rangeEl.value; autosizeWide(numberEl); onChange(); });
+      // number typing (allow partials)
+      numberEl.addEventListener('input', () => {
+        autosizeWide(numberEl);
+        const raw = numberEl.value;
+        if (raw === '' || raw === '-' || raw === '.' || raw === '-.' ) return;
+        if (!isFinite(parseFloat(raw))) return;
+        onChange();
+      });
+      // finalize/clamp on blur & change
+      function finalize(){
+        const min = parseFloat(numberEl.min || rangeEl.min || '-Infinity');
+        const max = parseFloat(numberEl.max || rangeEl.max || 'Infinity');
+        let v = parseFloat(numberEl.value);
+        if (!isFinite(v)) v = min || 0;
+        v = Math.max(min, Math.min(max, v));
+        numberEl.value = v; rangeEl.value = v; autosizeWide(numberEl); onChange();
+      }
+      numberEl.addEventListener('change', finalize);
+      numberEl.addEventListener('blur', finalize);
+    }
+
+    // Tabs + chart-specific controls
+    const tabButtons = [];
+    const panels = [];
+    function setActiveChartControls(view){
+      document.querySelectorAll('.chart-controls').forEach(el=>{
+        el.classList.toggle('active', el.dataset.controlsFor === view);
+      });
+    }
+    function initTabs(){
+      tabButtons.push(...Array.from(document.querySelectorAll('.tab-btn')));
+      panels.push(...Array.from(document.querySelectorAll('[data-panel]')));
+      tabButtons.forEach(btn => btn.addEventListener('click', () => {
+        const view = btn.dataset.view;
+        tabButtons.forEach(b => b.setAttribute('aria-selected', String(b===btn)));
+        panels.forEach(p => p.classList.toggle('hidden', p.dataset.panel !== view));
+        setActiveChartControls(view);
+        // Let layout settle, then resize charts once. Prevents "sliding" doughnuts.
+        requestAnimationFrame(()=>{ resizeCharts(); });
+      }));
+      // Default controls state
+      setActiveChartControls('shares');
+    }
+
+    // Charts
+    let mixChart, cogsPie, waterfallChart, sharesChart, tornadoChart, compareChart, monthChart;
+    function initCharts(){
+      mixChart = new Chart(document.getElementById('mixChart'), {
+        type:'doughnut',
+        data:{ labels:['Beverage','Beer','Liquor','Food'], datasets:[{data:[0,0,0,0]}] },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          resizeDelay:150,
+          animation:{ duration:250 },
+          plugins:{ legend:{position:'bottom', labels:{color:'#cbd5e1'} } }
+        }
+      });
+      cogsPie = new Chart(document.getElementById('cogsPie'), {
+        type:'doughnut',
+        data:{ labels:['Beverage COGS','Beer COGS','Liquor COGS','Food COGS','Non-Food'], datasets:[{data:[0,0,0,0,0]}] },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          resizeDelay:150,
+          animation:{ duration:250 },
+          plugins:{ legend:{position:'bottom', labels:{color:'#cbd5e1'} } }
+        }
+      });
+      waterfallChart = new Chart(document.getElementById('waterfallChart'), {
+        type:'bar',
+        data:{ labels:['Sales','Beverage COGS','Beer COGS','Liquor COGS','Food COGS','Non-Food','Sales Tax','LBD','CC Fees','Fixed','Payroll','Profit'], datasets:[{label:'Amount', data:[0,0,0,0,0,0,0,0,0,0,0,0]}] },
+        options:{ maintainAspectRatio:false, indexAxis:'y', plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${c.label}: ${money(c.parsed.x,2)}` } } }, scales:{ x:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, y:{ ticks:{ color:'#cbd5e1' }, grid:{ color:'rgba(203,213,225,.15)' } } }, responsive:true }
+      });
+      sharesChart = new Chart(document.getElementById('sharesChart'), {
+        type:'pie',
+        data:{ labels:['Variable Costs','Fixed Costs','Payroll','Profit'], datasets:[{data:[0,0,0,0]}] },
+        options:{ maintainAspectRatio:false, responsive:true, plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } } }
+      });
+      tornadoChart = new Chart(document.getElementById('tornadoChart'), {
+        type:'bar',
+        data:{ labels:[], datasets:[ {label:'-Δ', data:[]}, {label:'+Δ', data:[]} ] },
+        options:{ maintainAspectRatio:false, indexAxis:'y', plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } }, scales:{ x:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, y:{ ticks:{ color:'#cbd5e1' }, grid:{ color:'rgba(203,213,225,.15)' } } }, responsive:true }
+      });
+      compareChart = new Chart(document.getElementById('compareChart'), {
+        type:'bar',
+        data:{ labels:['Current','Scenario A','Scenario B','Scenario C'], datasets:[ {label:'Profit', data:[0,0,0,0]} ] },
+        options:{ maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } }, scales:{ y:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, x:{ ticks:{ color:'#cbd5e1' } } }, responsive:true }
+      });
+      monthChart = new Chart(document.getElementById('monthChart'), {
+        type:'bar',
+        data:{ labels:[], datasets:[ {label:'Profit', data:[]} ] },
+        options:{ maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } }, scales:{ y:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, x:{ ticks:{ color:'#cbd5e1' } } }, responsive:true }
+      });
+    }
+    function resizeCharts(){ [mixChart, cogsPie, waterfallChart, sharesChart, tornadoChart, compareChart, monthChart].forEach(ch=>{ try{ ch.resize(); }catch(e){} }); }
+
+    // Elements
+    const els = {
+      // Revenue & mix
+      sales: $('sales'), salesN: $('salesN'), salesLbl: $('salesLbl'),
+      pctBev: $('pctBev'), pctBevN: $('pctBevN'), pctBevLbl: $('pctBevLbl'),
+      pctBeer: $('pctBeer'), pctBeerN: $('pctBeerN'), pctBeerLbl: $('pctBeerLbl'),
+      pctLiq: $('pctLiq'), pctLiqN: $('pctLiqN'), pctLiqLbl: $('pctLiqLbl'),
+      pctFood: $('pctFood'), pctFoodN: $('pctFoodN'), pctFoodLbl: $('pctFoodLbl'),
+
+      // COGS
+      cogBev: $('cogBev'), cogBevN: $('cogBevN'), cogBevLbl: $('cogBevLbl'),
+      cogBeer: $('cogBeer'), cogBeerN: $('cogBeerN'), cogBeerLbl: $('cogBeerLbl'),
+      cogLiq: $('cogLiq'), cogLiqN: $('cogLiqN'), cogLiqLbl: $('cogLiqLbl'),
+      cogFood: $('cogFood'), cogFoodN: $('cogFoodN'), cogFoodLbl: $('cogFoodLbl'),
+      nonFoodPct: $('nonFoodPct'), nonFoodPctN: $('nonFoodPctN'), nonFoodPctLbl: $('nonFoodPctLbl'),
+
+      // Expenses / Fixed / Taxes / Fees / Labor
+      btnRefreshExpenses: $('btnRefreshExpenses'), expStatus: $('expStatus'),
+      expEssLbl: $('expEssLbl'), expNonLbl: $('expNonLbl'),
+      useExpFixed: $('useExpFixed'), useExpTaxes: $('useExpTaxes'), useExpLabor: $('useExpLabor'),
+
+      salesTax: $('salesTax'), salesTaxN: $('salesTaxN'), salesTaxLbl: $('salesTaxLbl'),
+      lbd: $('lbd'), lbdN: $('lbdN'), lbdLbl: $('lbdLbl'),
+      ccRate: $('ccRate'), ccRateN: $('ccRateN'), ccRateLbl: $('ccRateLbl'),
+      ccShare: $('ccShare'), ccShareN: $('ccShareN'), ccShareLbl: $('ccShareLbl'),
+
+      fixedEss: $('fixedEss'), fixedEssN: $('fixedEssN'), fixedNon: $('fixedNon'), fixedNonN: $('fixedNonN'),
+      includeManagers: $('includeManagers'),
+      foh: $('foh'), fohN: $('fohN'), fohLbl: $('fohLbl'),
+      boh: $('boh'), bohN: $('bohN'), bohLbl: $('bohLbl'),
+      mgr: $('mgr'), mgrN: $('mgrN'), mgrLbl: $('mgrLbl'),
+      weeklyPayrollTax: $('weeklyPayrollTax'), weeklyPayrollTaxN: $('weeklyPayrollTaxN'), weeklyPayrollTaxLbl: $('weeklyPayrollTaxLbl'),
+      payrollPeriods: $('payrollPeriods'), payrollPeriodsN: $('payrollPeriodsN'), payrollPeriodsLbl: $('payrollPeriodsLbl'),
+
+      // KPIs
+      kpiSales: $('kpiSales'), kpiVariable: $('kpiVariable'), kpiFixedPayroll: $('kpiFixedPayroll'),
+      kpiTotalExp: $('kpiTotalExp'), kpiProfit: $('kpiProfit'), kpiBreakeven: $('kpiBreakeven'),
+
+      // Model / scenarios / snapshots
+      btnSave: $('btnSave'), btnReset: $('btnReset'), btnExportCSV: $('btnExportCSV'),
+      targetProfit: $('targetProfit'), targetProfitN: $('targetProfitN'), targetLbl: $('targetLbl'), btnSolve: $('btnSolve'), solveText: $('solveText'),
+      scenarioSlot: $('scenarioSlot'), btnScenarioSave: $('btnScenarioSave'), btnScenarioLoad: $('btnScenarioLoad'),
+      scenarioName: $('scenarioName'),
+      snapYear: $('snapYear'), monthGrid: $('monthGrid'),
+
+      // Tornado
+      tornadoSwing: $('tornadoSwing'), tornadoSwingN: $('tornadoSwingN'), tornadoSwingLbl: $('tornadoSwingLbl'),
+    };
+
+    // Bind pairs
+    [
+      ['sales','salesN'], ['pctBev','pctBevN'], ['pctBeer','pctBeerN'], ['pctLiq','pctLiqN'], ['pctFood','pctFoodN'],
+      ['cogBev','cogBevN'], ['cogBeer','cogBeerN'], ['cogLiq','cogLiqN'], ['cogFood','cogFoodN'],
+      ['nonFoodPct','nonFoodPctN'], ['salesTax','salesTaxN'], ['lbd','lbdN'], ['ccRate','ccRateN'], ['ccShare','ccShareN'],
+      ['fixedEss','fixedEssN'], ['fixedNon','fixedNonN'], ['foh','fohN'], ['boh','bohN'], ['mgr','mgrN'],
+      ['weeklyPayrollTax','weeklyPayrollTaxN'], ['payrollPeriods','payrollPeriodsN'], ['targetProfit','targetProfitN'],
+      ['tornadoSwing','tornadoSwingN']
+    ].forEach(([r, n]) => bindPair(els[r], els[n], recalc));
+
+    // Scenario & model persistence
+    function captureInputs(){
+      return {
+        scenarioName: els.scenarioName.value || '',
+        sales: els.salesN.value,
+        mix:{ bev:els.pctBevN.value, beer:els.pctBeerN.value, liq:els.pctLiqN.value, food:els.pctFoodN.value },
+        cogs:{ bev:els.cogBevN.value, beer:els.cogBeerN.value, liq:els.cogLiqN.value, food:els.cogFoodN.value },
+        nonFoodPct: els.nonFoodPctN.value,
+        taxes:{ sales:els.salesTaxN.value, lbd:els.lbdN.value },
+        fees:{ ccRate:els.ccRateN.value, ccShare:els.ccShareN.value },
+        fixed:{ ess:els.fixedEssN.value, non:els.fixedNonN.value },
+        labor:{ foh:els.fohN.value, boh:els.bohN.value, mgr:els.mgrN.value, includeManagers: els.includeManagers.checked, weeklyTax: els.weeklyPayrollTaxN.value, cycles: els.payrollPeriodsN.value },
+        targetProfit: els.targetProfitN.value,
+        tornadoSwing: els.tornadoSwingN.value,
+        tornadoKeys: Array.from(getSelectedTornadoKeys()),
+        useExpFixed: els.useExpFixed.checked,
+        useExpTaxes: els.useExpTaxes.checked,
+        useExpLabor: els.useExpLabor.checked
+      };
+    }
+    function applyInputs(s, silent=false){ if(!s) return;
+      const set = (numEl, rangeEl, v)=>{ if(v==null) return; numEl.value=v; rangeEl.value=v; autosizeWide(numEl); };
+      els.scenarioName.value = s.scenarioName || '';
+      set(els.salesN, els.sales, s.sales);
+      set(els.pctBevN, els.pctBev, s.mix?.bev); set(els.pctBeerN, els.pctBeer, s.mix?.beer); set(els.pctLiqN, els.pctLiq, s.mix?.liq); set(els.pctFoodN, els.pctFood, s.mix?.food);
+      set(els.cogBevN, els.cogBev, s.cogs?.bev); set(els.cogBeerN, els.cogBeer, s.cogs?.beer); set(els.cogLiqN, els.cogLiq, s.cogs?.liq); set(els.cogFoodN, els.cogFood, s.cogs?.food);
+      set(els.nonFoodPctN, els.nonFoodPct, s.nonFoodPct); set(els.salesTaxN, els.salesTax, s.taxes?.sales); set(els.lbdN, els.lbd, s.taxes?.lbd);
+      set(els.ccRateN, els.ccRate, s.fees?.ccRate); set(els.ccShareN, els.ccShare, s.fees?.ccShare);
+      set(els.fixedEssN, els.fixedEss, s.fixed?.ess); set(els.fixedNonN, els.fixedNon, s.fixed?.non);
+      set(els.fohN, els.foh, s.labor?.foh); set(els.bohN, els.boh, s.labor?.boh); set(els.mgrN, els.mgr, s.labor?.mgr);
+      els.includeManagers.checked = s.labor?.includeManagers ?? els.includeManagers.checked;
+      set(els.weeklyPayrollTaxN, els.weeklyPayrollTax, s.labor?.weeklyTax);
+      set(els.payrollPeriodsN, els.payrollPeriods, s.labor?.cycles);
+      set(els.targetProfitN, els.targetProfit, s.targetProfit);
+      set(els.tornadoSwingN, els.tornadoSwing, s.tornadoSwing);
+
+      els.useExpFixed.checked = !!s.useExpFixed;
+      els.useExpTaxes.checked = !!s.useExpTaxes;
+      els.useExpLabor.checked = !!s.useExpLabor;
+
+      const keys = new Set((s.tornadoKeys && Array.isArray(s.tornadoKeys)) ? s.tornadoKeys : tornadoDefs.map(d=>d.key));
+      setSelectedTornadoKeys(keys);
+
+      clampManualStates();
+      if (!silent) recalc();
+    }
+    function saveToLocal(){ localStorage.setItem('amigo_pro_model', JSON.stringify(captureInputs())); }
+    function loadFromLocal(){ const s = localStorage.getItem('amigo_pro_model'); if (s){ try{ applyInputs(JSON.parse(s), true); }catch(e){} } }
+
+    $('btnSave').addEventListener('click', ()=>{ saveToLocal(); alert('Saved to this browser.'); });
+    $('btnReset').addEventListener('click', ()=>{ localStorage.removeItem('amigo_pro_model'); location.reload(); });
+
+    // Scenarios A/B/C
+    function slotKey(){ return 'amigo_pro_scenario_'+$('scenarioSlot').value; }
+    function scenarioLabel(code){
+      const raw = localStorage.getItem('amigo_pro_scenario_'+code);
+      if(!raw) return code;
+      try{ const s = JSON.parse(raw); return s.scenarioName ? `${code}: ${s.scenarioName}` : code; }catch(e){ return code; }
+    }
+    $('btnScenarioSave').addEventListener('click', ()=>{
+      const snapshot = captureInputs();
+      localStorage.setItem(slotKey(), JSON.stringify(snapshot));
+      recalc();
+      alert('Scenario saved.');
+    });
+    $('btnScenarioLoad').addEventListener('click', ()=>{
+      const s = localStorage.getItem(slotKey());
+      if (s){ applyInputs(JSON.parse(s)); } else { alert('No scenario saved in that slot.'); }
+    });
+
+    // Export CSV
+    $('btnExportCSV').addEventListener('click', ()=>{
+      const x = compute();
+      const rows = [
+        ['Metric','Value'],
+        ['Monthly Sales', x.sales],
+        ['Variable Costs', x.variableCosts],
+        ['Fixed + Payroll', x.fixedPlusPayroll],
+        ['Total Expenses', x.totalExpenses],
+        ['Profit', x.profit],
+        ['Break-Even Sales', x.breakevenSales || 'NA'],
+        ['Payroll Cycles', x.cycles]
+      ];
+      const blob = new Blob([toCSV(rows)], {type:'text/csv'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'amigo_profit_snapshot.csv'; a.click();
+    });
+
+    /* ========= Tornado ========= */
+    const tornadoDefs = [
+      { key:'cogFood',  label:'Food COG%',          mutate:(s,dir,sw)=>{ s.cogs.food = Math.max(0, Number(s.cogs.food)*(1+sw*dir)); } },
+      { key:'cogLiq',   label:'Liquor COG%',        mutate:(s,dir,sw)=>{ s.cogs.liq  = Math.max(0, Number(s.cogs.liq )*(1+sw*dir)); } },
+      { key:'cogBeer',  label:'Beer COG%',          mutate:(s,dir,sw)=>{ s.cogs.beer = Math.max(0, Number(s.cogs.beer)*(1+sw*dir)); } },
+      { key:'cogBev',   label:'Beverage COG%',      mutate:(s,dir,sw)=>{ s.cogs.bev  = Math.max(0, Number(s.cogs.bev )*(1+sw*dir)); } },
+      { key:'nonFood',  label:'Non-Food % of Food', mutate:(s,dir,sw)=>{ s.nonFoodPct = Math.max(0, Number(s.nonFoodPct)*(1+sw*dir)); } },
+      { key:'taxSales', label:'Sales Tax %',        mutate:(s,dir,sw)=>{ s.taxes.sales = Math.max(0, Number(s.taxes.sales)*(1+sw*dir)); } },
+      { key:'ccRate',   label:'CC Rate %',          mutate:(s,dir,sw)=>{ s.fees.ccRate = Math.max(0, Number(s.fees.ccRate)*(1+sw*dir)); } },
+      { key:'mixFood',  label:'Food Mix %',         mutate:(s,dir,sw)=>{ s.mix.food = Math.max(0.1, Number(s.mix.food)*(1+sw*dir)); } }
+    ];
+
+    function renderTornadoVarList(selectedKeys){
+      const wrap = document.getElementById('tornadoVarList'); wrap.innerHTML = '';
+      tornadoDefs.forEach(def=>{
+        const id = 'tvar_'+def.key;
+        const div = document.createElement('label');
+        div.className = 'chk';
+        div.innerHTML = `<input type="checkbox" class="tvar" id="${id}" data-key="${def.key}" ${selectedKeys.has(def.key)?'checked':''}><span>${def.label}</span>`;
+        wrap.appendChild(div);
+      });
+      wrap.querySelectorAll('input.tvar').forEach(cb=>{
+        cb.addEventListener('change', ()=>{ saveToLocal(); recalc(); });
+      });
+    }
+    function getSelectedTornadoKeys(){
+      const keys = new Set();
+      document.querySelectorAll('#tornadoVarList input.tvar:checked').forEach(cb=> keys.add(cb.dataset.key));
+      return keys;
+    }
+    function setSelectedTornadoKeys(keys){
+      document.querySelectorAll('#tornadoVarList input.tvar').forEach(cb=>{ cb.checked = keys.has(cb.dataset.key); });
+    }
+
+    /* ========= Math ========= */
+    function normalizeMix() {
+      const b = parseFloat(els.pctBevN.value||0), r = parseFloat(els.pctBeerN.value||0), l = parseFloat(els.pctLiqN.value||0), f = parseFloat(els.pctFoodN.value||0);
+      const sum = b+r+l+f; if (sum <= 0) return { bev:0, beer:0, liq:0, food:1 };
+      return { bev:b/sum, beer:r/sum, liq:l/sum, food:f/sum };
+    }
+
+    function compute(){
+      const sModel = captureInputs(); // read toggles without altering DOM
+
+      const sales = Number(els.salesN.value||0);
+      const mix = normalizeMix();
+
+      const rev = { beverage: sales*mix.bev, beer: sales*mix.beer, liquor: sales*mix.liq, food: sales*mix.food };
+      const cogs = {
+        beverage: rev.beverage * (Number(els.cogBevN.value||0)/100),
+        beer:     rev.beer     * (Number(els.cogBeerN.value||0)/100),
+        liquor:   rev.liquor   * (Number(els.cogLiqN.value||0)/100),
+        food:     rev.food     * (Number(els.cogFoodN.value||0)/100)
+      };
+      const nonFood = cogs.food * (Number(els.nonFoodPctN.value||0)/100);
+
+      // Taxes & fees (may be overridden from details)
+      let salesTaxPct = Number(els.salesTaxN.value||0);
+      let lbdPct = Number(els.lbdN.value||0);
+      let ccRatePct = Number(els.ccRateN.value||0);
+      let ccSharePct = Number(els.ccShareN.value||0);
+      if (sModel.useExpTaxes && expenseDetailsCache){
+        salesTaxPct = expenseDetailsCache.taxes?.salesTax ?? salesTaxPct;
+        lbdPct      = expenseDetailsCache.taxes?.lbd ?? lbdPct;
+        ccRatePct   = expenseDetailsCache.fees?.ccRate ?? ccRatePct;
+        ccSharePct  = expenseDetailsCache.fees?.ccShare ?? ccSharePct;
+      }
+
+      const salesTax = sales * (salesTaxPct/100);
+      const lbd = rev.liquor * (lbdPct/100);
+      const ccFees = sales * (ccSharePct/100) * (ccRatePct/100);
+
+      const variableCosts = (cogs.beverage||0)+(cogs.beer||0)+(cogs.liquor||0)+(cogs.food||0)+(nonFood||0)+(salesTax||0)+(lbd||0)+(ccFees||0);
+
+      // Fixed via builder OR manual
+      let fixedEssVal = Number(els.fixedEssN.value||0);
+      let fixedNonVal = Number(els.fixedNonN.value||0);
+      if (sModel.useExpFixed){
+        const ess = expenseDetailsCache?.fixed?.essential ?? expenseTotalsCache?.essential;
+        const non = expenseDetailsCache?.fixed?.nonessential ?? expenseTotalsCache?.nonessential;
+        if(ess!=null) fixedEssVal = Number(ess);
+        if(non!=null) fixedNonVal = Number(non);
+      }
+      const fixed = fixedEssVal + fixedNonVal;
+
+      // Labor (weekly → monthly by cycles), may pull from builder
+      let foh = Number(els.fohN.value||0);
+      let boh = Number(els.bohN.value||0);
+      let mgr = Number(els.mgrN.value||0);
+      let includeMgr = els.includeManagers.checked;
+      let weeklyTax = Number(els.weeklyPayrollTaxN.value||0);
+      let cycles = Number(els.payrollPeriodsN.value||0);
+
+      if (sModel.useExpLabor && expenseDetailsCache){
+        foh = expenseDetailsCache.labor?.foh ?? foh;
+        boh = expenseDetailsCache.labor?.boh ?? boh;
+        mgr = expenseDetailsCache.labor?.mgr ?? mgr;
+        includeMgr = (expenseDetailsCache.labor?.includeManagers ?? includeMgr);
+        weeklyTax = expenseDetailsCache.labor?.weeklyTax ?? weeklyTax;
+        cycles = expenseDetailsCache.labor?.cycles ?? cycles;
+      }
+
+      const weeklyBase = foh + boh + (includeMgr ? mgr : 0);
+      const payrollWeekly = weeklyBase + weeklyTax;
+      const payrollMonthly = payrollWeekly * cycles;
+
+      const fixedPlusPayroll = fixed + payrollMonthly;
+      const totalExpenses = variableCosts + fixedPlusPayroll;
+      const profit = sales - totalExpenses;
+
+      // Break-even
+      const cogBev = Number(els.cogBevN.value||0)/100, cogBeer = Number(els.cogBeerN.value||0)/100, cogLiq = Number(els.cogLiqN.value||0)/100, cogFood = Number(els.cogFoodN.value||0)/100;
+      const nfPct = Number(els.nonFoodPctN.value||0)/100, stPct = salesTaxPct/100, lbdPctEff = lbdPct/100, ccEff = (ccSharePct/100) * (ccRatePct/100);
+      const varRatio = (mix.bev*cogBev) + (mix.beer*cogBeer) + (mix.liq*cogLiq) + (mix.food*cogFood*(1+nfPct)) + stPct + (mix.liq*lbdPctEff) + ccEff;
+      const denom = 1 - varRatio; const breakevenSales = denom>0 ? fixedPlusPayroll/denom : null;
+
+      return { sales, rev, cogs, nonFood, salesTax, lbd, ccFees, variableCosts, fixed, payrollWeekly, payrollMonthly, fixedPlusPayroll, totalExpenses, profit, varRatio, breakevenSales, cycles };
+    }
+
+    // Compute profit for modified snapshot (used by tornado)
+    function computeProfitWith(inputs){
+      const snapshot = captureInputs();
+      applyInputs(inputs, true);
+      const p = compute().profit;
+      applyInputs(snapshot, true);
+      return p;
+    }
+
+    /* ========= Monthly Snapshots ========= */
+    function monthKey(y, m){ return `amigo_pro_month_${y}_${String(m).padStart(2,'0')}`; }
+    function monthName(i){ return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i-1]; }
+    function currentYear(){ return new Date().getFullYear(); }
+
+    function initYears(){
+      const y = currentYear();
+      const years = [y-1, y, y+1];
+      els.snapYear.innerHTML = years.map(v => `<option value="${v}" ${v===y?'selected':''}>${v}</option>`).join('');
+    }
+
+    function renderMonthGrid(){
+      const y = Number(els.snapYear.value);
+      const grid = els.monthGrid;
+      grid.innerHTML = '';
+      for(let m=1;m<=12;m++){
+        const key = monthKey(y,m);
+        let stored = null;
+        try{ const raw = localStorage.getItem(key); if(raw) stored = JSON.parse(raw); }catch(e){}
+        const prof = stored ? money(stored.profit||0) : '—';
+        const name = stored?.scenarioName || '';
+        const idSave = `save_${m}`, idLoad = `load_${m}`;
+        const card = document.createElement('div');
+        card.className = 'bg-slate-900/60 rounded-xl p-3';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="font-semibold">${monthName(m)}</div>
+            <div class="mini muted mono">${prof}</div>
+          </div>
+          <div class="mini muted mt-1 truncate" title="${name}">${name || '<no name>'}</div>
+          <div class="flex gap-2 mt-2">
+            <button id="${idSave}" class="btn flex-1">Save</button>
+            <button id="${idLoad}" class="btn flex-1">Load</button>
+          </div>
+        `;
+        grid.appendChild(card);
+        document.getElementById(idSave).addEventListener('click', ()=>{
+          const model = captureInputs();
+          const profit = compute().profit;
+          const payload = { scenarioName: model.scenarioName || '', model, profit, savedAt: new Date().toISOString() };
+          localStorage.setItem(key, JSON.stringify(payload));
+          renderMonthGrid(); // refresh preview
+          updateMonthCompareChart();
+        });
+        document.getElementById(idLoad).addEventListener('click', ()=>{
+          const raw = localStorage.getItem(key);
+          if(!raw){ alert('No snapshot saved for '+monthName(m)+' '+y); return; }
+          try{
+            const snap = JSON.parse(raw);
+            applyInputs(snap.model);
+          }catch(e){ alert('Corrupted snapshot.'); }
+        });
+      }
+    }
+
+    function updateMonthCompareChart(){
+      const y = Number(els.snapYear.value);
+      const labels = [], data = [];
+      for(let m=1;m<=12;m++){
+        const raw = localStorage.getItem(monthKey(y,m));
+        if(raw){
+          try{
+            const snap = JSON.parse(raw);
+            labels.push(monthName(m));
+            data.push(Number(snap.profit||0));
+          }catch(e){}
+        }
+      }
+      if(labels.length===0){
+        monthChart.data.labels = ['No snapshots'];
+        monthChart.data.datasets[0].data = [0];
+      }else{
+        monthChart.data.labels = labels;
+        monthChart.data.datasets[0].data = data;
+      }
+      monthChart.update();
+    }
+
+    /* ========= UI helpers ========= */
+    function clampManualStates(){
+      // Enable/disable manual inputs depending on "pull from expenses" toggles and data availability
+      const hasTotals = !!(expenseTotalsCache || expenseDetailsCache?.fixed);
+      const hasTaxes  = !!(expenseDetailsCache?.taxes || expenseDetailsCache?.fees);
+      const hasLabor  = !!(expenseDetailsCache?.labor);
+
+      // Fixed
+      const useFixed = els.useExpFixed.checked && hasTotals;
+      ['fixedEss','fixedEssN','fixedNon','fixedNonN'].forEach(id=>{
+        const el = $(id); el.disabled = useFixed; el.style.opacity = useFixed ? .6 : 1;
+      });
+      // Taxes / Fees
+      const useTaxes = els.useExpTaxes.checked && hasTaxes;
+      ['salesTax','salesTaxN','lbd','lbdN','ccRate','ccRateN','ccShare','ccShareN'].forEach(id=>{
+        const el = $(id); el.disabled = useTaxes; el.style.opacity = useTaxes ? .6 : 1;
+      });
+      // Labor
+      const useLabor = els.useExpLabor.checked && hasLabor;
+      ['foh','fohN','boh','bohN','mgr','mgrN','weeklyPayrollTax','weeklyPayrollTaxN','payrollPeriods','payrollPeriodsN'].forEach(id=>{
+        const el = $(id); el.disabled = useLabor; el.style.opacity = useLabor ? .6 : 1;
+      });
+      $('includeManagers').disabled = useLabor; $('includeManagers').style.opacity = useLabor ? .6 : 1;
+
+      // Status tips
+      if(els.useExpFixed.checked && !hasTotals) $('expStatus').textContent = 'No fixed totals found in builder.';
+      if(els.useExpTaxes.checked && !hasTaxes) $('expStatus').textContent = 'No taxes/fees found in builder.';
+      if(els.useExpLabor.checked && !hasLabor) $('expStatus').textContent = 'No labor details found in builder.';
+    }
+
+    // Main recalc
+    function recalc(){
+      if (inRecalc) return; inRecalc = true;
+      try{
+        // UI labels
+        $('salesLbl').textContent = money(els.salesN.value);
+        $('pctBevLbl').textContent = pct(els.pctBevN.value); $('pctBeerLbl').textContent = pct(els.pctBeerN.value); $('pctLiqLbl').textContent = pct(els.pctLiqN.value); $('pctFoodLbl').textContent = pct(els.pctFoodN.value);
+        $('cogBevLbl').textContent = pct(els.cogBevN.value); $('cogBeerLbl').textContent = pct(els.cogBeerN.value); $('cogLiqLbl').textContent = pct(els.cogLiqN.value); $('cogFoodLbl').textContent = pct(els.cogFoodN.value);
+        $('nonFoodPctLbl').textContent = pct(els.nonFoodPctN.value); $('salesTaxLbl').textContent = pct(els.salesTaxN.value); $('lbdLbl').textContent = pct(els.lbdN.value); $('ccRateLbl').textContent = pct(els.ccRateN.value); $('ccShareLbl').textContent = pct(els.ccShareN.value);
+        $('fohLbl').textContent = money(els.fohN.value,2); $('bohLbl').textContent = money(els.bohN.value,2); $('mgrLbl').textContent = money(els.mgrN.value,2);
+        $('weeklyPayrollTaxLbl').textContent = money(els.weeklyPayrollTaxN.value,2); $('payrollPeriodsLbl').textContent = String(els.payrollPeriodsN.value);
+        $('targetLbl').textContent = money(els.targetProfitN.value);
+
+        const x = compute();
+
+        // Summaries on collapsed rows
+        $('revSummary').textContent = `${money(x.sales)} sales`;
+        $('cogsSummary').textContent = `COGS ${money(x.cogs.beverage+x.cogs.beer+x.cogs.liquor+x.cogs.food + x.nonFood,0)}`;
+        $('fixedSummary').textContent = `Fixed ${money(x.fixed)}`;
+        $('taxSummary').textContent = `Taxes/Fees ${money(x.salesTax + x.lbd + x.ccFees)}`;
+        const laborWeek = x.payrollWeekly; const laborMo = x.payrollMonthly;
+        $('laborSummary').textContent = `Weekly ${money(laborWeek)} → ${money(laborMo)} / mo`;
+        $('expenseSummary').textContent = `${money(x.fixed + x.payrollMonthly)} (fixed + payroll)`;
+
+        // KPIs
+        $('kpiSales').textContent = money(x.sales);
+        $('kpiVariable').textContent = money(Math.round(x.variableCosts));
+        $('kpiFixedPayroll').textContent = money(Math.round(x.fixedPlusPayroll));
+        $('kpiTotalExp').textContent = money(Math.round(x.totalExpenses));
+        $('kpiProfit').textContent = (x.profit>=0?'':'-')+money(Math.abs(Math.round(x.profit)));
+        $('kpiBreakeven').textContent = x.breakevenSales ? money(Math.ceil(x.breakevenSales/100)*100) : '—';
+
+        // Charts
+        const revVals = [x.rev.beverage||0, x.rev.beer||0, x.rev.liquor||0, x.rev.food||0].map(v=>Number.isFinite(v)?v:0);
+        mixChart.data.datasets[0].data = revVals; mixChart.update();
+
+        const cogsVals = [x.cogs.beverage||0, x.cogs.beer||0, x.cogs.liquor||0, x.cogs.food||0, x.nonFood||0].map(v=>Number.isFinite(v)?v:0);
+        cogsPie.data.datasets[0].data = cogsVals; cogsPie.update();
+
+        waterfallChart.data.datasets[0].data = [
+          x.sales,x.cogs.beverage,x.cogs.beer,x.cogs.liquor,x.cogs.food,x.nonFood,x.salesTax,x.lbd,x.ccFees,x.fixed,x.payrollMonthly,Math.max(x.profit,0)
+        ].map(v=>Number(v)||0);
+        waterfallChart.update();
+
+        sharesChart.data.datasets[0].data=[x.variableCosts,x.fixed,x.payrollMonthly,Math.max(x.profit,0)].map(v=>Number(v)||0);
+        sharesChart.update();
+
+        // Tornado
+        const swing = Number(els.tornadoSwingN.value||0)/100;
+        const baseProfit = x.profit;
+        const orig = captureInputs();
+        const selectedKeys = getSelectedTornadoKeys();
+        const items = tornadoDefs
+          .filter(d=>selectedKeys.has(d.key))
+          .map(def=>{
+            const sPlus = JSON.parse(JSON.stringify(orig));
+            const sMinus = JSON.parse(JSON.stringify(orig));
+            def.mutate(sPlus, +1, swing);
+            def.mutate(sMinus, -1, swing);
+            const pPlus = computeProfitWith(sPlus);
+            const pMinus = computeProfitWith(sMinus);
+            return {label:def.label, minus:pMinus-baseProfit, plus:pPlus-baseProfit};
+          })
+          .sort((a,b)=> Math.max(Math.abs(b.plus),Math.abs(b.minus)) - Math.max(Math.abs(a.plus),Math.abs(a.minus)));
+
+        tornadoChart.data.labels = items.map(v=>v.label);
+        tornadoChart.data.datasets[0].data = items.map(v=>v.minus);
+        tornadoChart.data.datasets[1].data = items.map(v=>v.plus);
+        tornadoChart.update();
+
+        // Scenario compare (show names if saved)
+        compareChart.data.labels = ['Current', scenarioLabel('A'), scenarioLabel('B'), scenarioLabel('C')];
+        function profitOfSlot(code){
+          const s = localStorage.getItem('amigo_pro_scenario_'+code);
+          if(!s) return 0;
+          try{ return computeProfitWith(JSON.parse(s)); }catch(e){ return 0; }
+        }
+        compareChart.data.datasets[0].data = [x.profit, profitOfSlot('A'), profitOfSlot('B'), profitOfSlot('C')];
+        compareChart.update();
+
+        // Lists
+        $('revList').innerHTML = `
+          <li>Beverage: <span class="float-right">${money(x.rev.beverage,2)}</span></li>
+          <li>Beer: <span class="float-right">${money(x.rev.beer,2)}</span></li>
+          <li>Liquor: <span class="float-right">${money(x.rev.liquor,2)}</span></li>
+          <li>Food: <span class="float-right">${money(x.rev.food,2)}</span></li>`;
+        $('cogsList').innerHTML = `
+          <li>Beverage COGS: <span class="float-right">${money(x.cogs.beverage,2)}</span></li>
+          <li>Beer COGS: <span class="float-right">${money(x.cogs.beer,2)}</span></li>
+          <li>Liquor COGS: <span class="float-right">${money(x.cogs.liquor,2)}</span></li>
+          <li>Food COGS: <span class="float-right">${money(x.cogs.food,2)}</span></li>
+          <li>Non-Food: <span class="float-right">${money(x.nonFood,2)}</span></li>`;
+        $('feesList').innerHTML = `
+          <li>Sales Tax: <span class="float-right">${money(x.salesTax,2)}</span></li>
+          <li>LBD (Liquor): <span class="float-right">${money(x.lbd,2)}</span></li>
+          <li>CC Fees: <span class="float-right">${money(x.ccFees,2)}</span></li>
+          <li>Fixed Costs: <span class="float-right">${money(x.fixed,2)}</span></li>
+          <li>Payroll (mo): <span class="float-right">${money(x.payrollMonthly - (Number(els.weeklyPayrollTaxN.value||0)*Number(els.payrollPeriodsN.value||0)),2)}</span></li>
+          <li>Payroll Tax (mo): <span class="float-right">${money((Number(els.weeklyPayrollTaxN.value||0))*Number(els.payrollPeriodsN.value||0),2)}</span></li>`;
+
+        updateMonthCompareChart();
+      } finally { inRecalc = false; }
+    }
+
+    // Goal Seek
+    $('btnSolve').addEventListener('click', ()=>{
+      const x = compute(); const target = Number(els.targetProfitN.value||0);
+      const denom = 1 - x.varRatio; if (denom <= 0){ els.solveText.textContent = 'Cannot solve: variable cost ratio ≥ 1.'; return; }
+      const neededSales = (target + x.fixedPlusPayroll) / denom;
+      els.solveText.textContent = `Required sales: ${money(neededSales)} (at current mix & costs)`;
+      els.salesN.value = Math.round(neededSales/100)*100; els.sales.value = els.salesN.value; autosizeWide(els.salesN); recalc();
+    });
+
+    // Autosave
+    document.addEventListener('input', ()=>{ saveToLocal(); }, { passive:true });
+
+    // Tornado bulk buttons
+    $('btnTornadoAll').addEventListener('click', ()=>{ setSelectedTornadoKeys(new Set(tornadoDefs.map(d=>d.key))); saveToLocal(); recalc(); });
+    $('btnTornadoNone').addEventListener('click', ()=>{ setSelectedTornadoKeys(new Set()); saveToLocal(); recalc(); });
+
+    // Expenses buttons & toggles
+    $('btnRefreshExpenses').addEventListener('click', ()=>{ loadExpenseTotals(); loadExpenseDetails(); updateExpenseUI(); recalc(); });
+    ['useExpFixed','useExpTaxes','useExpLabor'].forEach(id=>{
+      $(id).addEventListener('change', ()=>{ clampManualStates(); recalc(); });
+    });
+
+    // Month UI
+    els.snapYear?.addEventListener('change', ()=>{ renderMonthGrid(); updateMonthCompareChart(); });
+
+    // Init
+    function init(){
+      initTabs();
+      initCharts();
+      renderTornadoVarList(new Set(tornadoDefs.map(d=>d.key)));
+      loadFromLocal();
+      loadExpenseTotals();
+      loadExpenseDetails();
+      updateExpenseUI();
+      autosizeAllWide();
+      initYears();
+      renderMonthGrid();
+      recalc();
+      resizeCharts();
+      window.addEventListener('resize', resizeCharts, { passive:true });
+    }
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
