@@ -337,7 +337,27 @@
         <!-- Monthly Snapshots -->
         <div class="card">
           <details open>
-            <summary><span class="twist"></span><span class="font-semibold">Monthly Data & Controls</span></summary>
+<details open>
+  <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
+
+  <div class="mt-4">
+    <div class="flex items-center gap-2">
+      <button id="prevMonth" class="btn px-3">◀</button>
+      <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+      <button id="nextMonth" class="btn px-3">▶</button>
+    </div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+      <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+    </div>
+    <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSave" class="btn flex-1">Save Model</button>
+      <button id="btnReset" class="btn flex-1">Reset Model</button>
+    </div>
+    <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+  </div>
+
 
             <div class="mt-4">
               <div class="flex items-center gap-2">
@@ -345,9 +365,27 @@
                 <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
                 <button id="nextMonth" class="btn px-3">▶</button>
               </div>
-              <div class="flex gap-2 mt-2">
-                <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
-                <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+<details open>
+  <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
+
+  <div class="mt-4">
+    <div class="flex items-center gap-2">
+      <button id="prevMonth" class="btn px-3">◀</button>
+      <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+      <button id="nextMonth" class="btn px-3">▶</button>
+    </div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+      <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+    </div>
+    <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSave" class="btn flex-1">Save Model</button>
+      <button id="btnReset" class="btn flex-1">Reset Model</button>
+    </div>
+    <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+  </div>
+
               </div>
               <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
               <div class="flex gap-2 mt-2">
@@ -651,8 +689,26 @@
 
       // Model / months / snapshots
       btnSave: $('btnSave'), btnReset: $('btnReset'), btnExportCSV: $('btnExportCSV'),
-      prevMonth: $('prevMonth'), nextMonth: $('nextMonth'), currMonthLbl: $('currentMonth'), btnSaveMonth: $('btnSaveMonth'), btnSubmitMonth: $('btnSubmitMonth'), monthStatus: $('monthStatus'),
-      snapYear: $('snapYear'), monthGrid: $('monthGrid'), missingMonths: $('missingMonths'), projectionList: $('projectionList'),
+<details open>
+  <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
+
+  <div class="mt-4">
+    <div class="flex items-center gap-2">
+      <button id="prevMonth" class="btn px-3">◀</button>
+      <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+      <button id="nextMonth" class="btn px-3">▶</button>
+    </div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+      <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+    </div>
+    <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSave" class="btn flex-1">Save Model</button>
+      <button id="btnReset" class="btn flex-1">Reset Model</button>
+    </div>
+    <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+  </div>
 
       // Tornado
       tornadoSwing: $('tornadoSwing'), tornadoSwingN: $('tornadoSwingN'), tornadoSwingLbl: $('tornadoSwingLbl'),
