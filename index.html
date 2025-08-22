@@ -334,44 +334,27 @@
           </details>
         </div>
 
-        <!-- Scenario & Monthly Snapshots -->
+        <!-- Monthly Snapshots -->
         <div class="card">
           <details open>
-            <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Scenarios</span></summary>
+            <summary><span class="twist"></span><span class="font-semibold">Monthly Data & Controls</span></summary>
 
-            <div class="mt-4 grid md:grid-cols-2 gap-4">
-              <div>
-                <div class="ctl">
-                  <label class="flex justify-between mb-1"><span>Target Profit ($)</span><span id="targetLbl">$0</span></label>
-                  <div class="pair">
-                    <input id="targetProfit" type="range" min="-50000" max="200000" step="500" value="0">
-                    <input id="targetProfitN" type="number" min="-50000" max="200000" step="500" value="0" class="bg-slate-800 rounded-xl px-3 py-2 num-wide"/>
-                  </div>
-                </div>
-                <button id="btnSolve" class="btn w-full mt-2">Solve Required Sales</button>
-                <div class="text-sm text-slate-400 mt-2" id="solveText"></div>
+            <div class="mt-4">
+              <div class="flex items-center gap-2">
+                <button id="prevMonth" class="btn px-3">◀</button>
+                <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+                <button id="nextMonth" class="btn px-3">▶</button>
               </div>
-              <div>
-                <label class="text-sm">Scenario slot
-                  <select id="scenarioSlot" class="w-full bg-slate-800 rounded-xl px-3 py-2 mt-1">
-                    <option value="A">Scenario A</option>
-                    <option value="B">Scenario B</option>
-                    <option value="C">Scenario C</option>
-                  </select>
-                </label>
-                <label class="text-sm block mt-2">Scenario name
-                  <input id="scenarioName" class="input w-full mt-1" placeholder="e.g., Tight labor, promo push" />
-                </label>
-                <div class="flex gap-2 mt-2">
-                  <button id="btnScenarioSave" class="btn flex-1">Save Current → Slot</button>
-                  <button id="btnScenarioLoad" class="btn flex-1">Load Slot → Current</button>
-                </div>
-                <div class="flex gap-2 mt-2">
-                  <button id="btnSave" class="btn flex-1">Save Model</button>
-                  <button id="btnReset" class="btn flex-1">Reset Model</button>
-                </div>
-                <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+              <div class="flex gap-2 mt-2">
+                <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+                <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
               </div>
+              <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+              <div class="flex gap-2 mt-2">
+                <button id="btnSave" class="btn flex-1">Save Model</button>
+                <button id="btnReset" class="btn flex-1">Reset Model</button>
+              </div>
+              <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
             </div>
 
             <hr class="border-slate-700 my-4" />
@@ -382,6 +365,14 @@
                   <select id="snapYear" class="w-full bg-slate-800 rounded-xl px-3 py-2 mt-1"></select>
                 </label>
                 <p class="mini muted mt-2">Save the current model to a month, then compare in the <em>Month Compare</em> chart tab.</p>
+                <div class="mt-4">
+                  <div class="font-semibold mb-1">Missing Submissions</div>
+                  <div id="missingMonths" class="mini text-red-400"></div>
+                </div>
+                <div class="mt-4">
+                  <div class="font-semibold mb-1">Projections</div>
+                  <ul id="projectionList" class="mini"></ul>
+                </div>
               </div>
               <div id="monthGrid" class="md:col-span-2 grid grid-cols-2 gap-2"></div>
             </div>
@@ -398,7 +389,6 @@
             <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="mix">Category Mix</button>
             <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="waterfall">Waterfall</button>
             <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="tornado">Sensitivity (Tornado)</button>
-            <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="compare">Scenario Compare</button>
             <button class="tab-btn px-3 py-1 rounded-xl text-sm border border-slate-700" data-view="monthCompare">Month Compare</button>
           </div>
           <div class="space-y-6">
@@ -418,7 +408,6 @@
 
             <div data-panel="waterfall" class="hidden"><canvas id="waterfallChart" height="280"></canvas></div>
             <div data-panel="tornado" class="hidden"><canvas id="tornadoChart" height="300"></canvas></div>
-            <div data-panel="compare" class="hidden"><canvas id="compareChart" height="240"></canvas></div>
             <div data-panel="monthCompare" class="hidden"><canvas id="monthChart" height="240"></canvas></div>
           </div>
         </div>
@@ -575,7 +564,7 @@
     }
 
     // Charts
-    let mixChart, cogsPie, waterfallChart, sharesChart, tornadoChart, compareChart, monthChart;
+    let mixChart, cogsPie, waterfallChart, sharesChart, tornadoChart, monthChart;
     function initCharts(){
       mixChart = new Chart(document.getElementById('mixChart'), {
         type:'doughnut',
@@ -614,18 +603,13 @@
         data:{ labels:[], datasets:[ {label:'-Δ', data:[]}, {label:'+Δ', data:[]} ] },
         options:{ maintainAspectRatio:false, indexAxis:'y', plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } }, scales:{ x:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, y:{ ticks:{ color:'#cbd5e1' }, grid:{ color:'rgba(203,213,225,.15)' } } }, responsive:true }
       });
-      compareChart = new Chart(document.getElementById('compareChart'), {
-        type:'bar',
-        data:{ labels:['Current','Scenario A','Scenario B','Scenario C'], datasets:[ {label:'Profit', data:[0,0,0,0]} ] },
-        options:{ maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } }, scales:{ y:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, x:{ ticks:{ color:'#cbd5e1' } } }, responsive:true }
-      });
       monthChart = new Chart(document.getElementById('monthChart'), {
         type:'bar',
         data:{ labels:[], datasets:[ {label:'Profit', data:[]} ] },
         options:{ maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#cbd5e1' } } }, scales:{ y:{ ticks:{ color:'#cbd5e1', callback:(v)=>'$'+Number(v).toLocaleString() }, grid:{ color:'rgba(203,213,225,.15)' } }, x:{ ticks:{ color:'#cbd5e1' } } }, responsive:true }
       });
     }
-    function resizeCharts(){ [mixChart, cogsPie, waterfallChart, sharesChart, tornadoChart, compareChart, monthChart].forEach(ch=>{ try{ ch.resize(); }catch(e){} }); }
+    function resizeCharts(){ [mixChart, cogsPie, waterfallChart, sharesChart, tornadoChart, monthChart].forEach(ch=>{ try{ ch.resize(); }catch(e){} }); }
 
     // Elements
     const els = {
@@ -665,12 +649,10 @@
       kpiSales: $('kpiSales'), kpiVariable: $('kpiVariable'), kpiFixedPayroll: $('kpiFixedPayroll'),
       kpiTotalExp: $('kpiTotalExp'), kpiProfit: $('kpiProfit'), kpiBreakeven: $('kpiBreakeven'),
 
-      // Model / scenarios / snapshots
+      // Model / months / snapshots
       btnSave: $('btnSave'), btnReset: $('btnReset'), btnExportCSV: $('btnExportCSV'),
-      targetProfit: $('targetProfit'), targetProfitN: $('targetProfitN'), targetLbl: $('targetLbl'), btnSolve: $('btnSolve'), solveText: $('solveText'),
-      scenarioSlot: $('scenarioSlot'), btnScenarioSave: $('btnScenarioSave'), btnScenarioLoad: $('btnScenarioLoad'),
-      scenarioName: $('scenarioName'),
-      snapYear: $('snapYear'), monthGrid: $('monthGrid'),
+      prevMonth: $('prevMonth'), nextMonth: $('nextMonth'), currMonthLbl: $('currentMonth'), btnSaveMonth: $('btnSaveMonth'), btnSubmitMonth: $('btnSubmitMonth'), monthStatus: $('monthStatus'),
+      snapYear: $('snapYear'), monthGrid: $('monthGrid'), missingMonths: $('missingMonths'), projectionList: $('projectionList'),
 
       // Tornado
       tornadoSwing: $('tornadoSwing'), tornadoSwingN: $('tornadoSwingN'), tornadoSwingLbl: $('tornadoSwingLbl'),
@@ -682,14 +664,13 @@
       ['cogBev','cogBevN'], ['cogBeer','cogBeerN'], ['cogLiq','cogLiqN'], ['cogFood','cogFoodN'],
       ['nonFoodPct','nonFoodPctN'], ['salesTax','salesTaxN'], ['lbd','lbdN'], ['ccRate','ccRateN'], ['ccShare','ccShareN'],
       ['fixedEss','fixedEssN'], ['fixedNon','fixedNonN'], ['foh','fohN'], ['boh','bohN'], ['mgr','mgrN'],
-      ['weeklyPayrollTax','weeklyPayrollTaxN'], ['payrollPeriods','payrollPeriodsN'], ['targetProfit','targetProfitN'],
+      ['weeklyPayrollTax','weeklyPayrollTaxN'], ['payrollPeriods','payrollPeriodsN'],
       ['tornadoSwing','tornadoSwingN']
     ].forEach(([r, n]) => bindPair(els[r], els[n], recalc));
 
-    // Scenario & model persistence
+    // Model persistence
     function captureInputs(){
       return {
-        scenarioName: els.scenarioName.value || '',
         sales: els.salesN.value,
         mix:{ bev:els.pctBevN.value, beer:els.pctBeerN.value, liq:els.pctLiqN.value, food:els.pctFoodN.value },
         cogs:{ bev:els.cogBevN.value, beer:els.cogBeerN.value, liq:els.cogLiqN.value, food:els.cogFoodN.value },
@@ -698,7 +679,6 @@
         fees:{ ccRate:els.ccRateN.value, ccShare:els.ccShareN.value },
         fixed:{ ess:els.fixedEssN.value, non:els.fixedNonN.value },
         labor:{ foh:els.fohN.value, boh:els.bohN.value, mgr:els.mgrN.value, includeManagers: els.includeManagers.checked, weeklyTax: els.weeklyPayrollTaxN.value, cycles: els.payrollPeriodsN.value },
-        targetProfit: els.targetProfitN.value,
         tornadoSwing: els.tornadoSwingN.value,
         tornadoKeys: Array.from(getSelectedTornadoKeys()),
         useExpFixed: els.useExpFixed.checked,
@@ -708,7 +688,6 @@
     }
     function applyInputs(s, silent=false){ if(!s) return;
       const set = (numEl, rangeEl, v)=>{ if(v==null) return; numEl.value=v; rangeEl.value=v; autosizeWide(numEl); };
-      els.scenarioName.value = s.scenarioName || '';
       set(els.salesN, els.sales, s.sales);
       set(els.pctBevN, els.pctBev, s.mix?.bev); set(els.pctBeerN, els.pctBeer, s.mix?.beer); set(els.pctLiqN, els.pctLiq, s.mix?.liq); set(els.pctFoodN, els.pctFood, s.mix?.food);
       set(els.cogBevN, els.cogBev, s.cogs?.bev); set(els.cogBeerN, els.cogBeer, s.cogs?.beer); set(els.cogLiqN, els.cogLiq, s.cogs?.liq); set(els.cogFoodN, els.cogFood, s.cogs?.food);
@@ -719,7 +698,6 @@
       els.includeManagers.checked = s.labor?.includeManagers ?? els.includeManagers.checked;
       set(els.weeklyPayrollTaxN, els.weeklyPayrollTax, s.labor?.weeklyTax);
       set(els.payrollPeriodsN, els.payrollPeriods, s.labor?.cycles);
-      set(els.targetProfitN, els.targetProfit, s.targetProfit);
       set(els.tornadoSwingN, els.tornadoSwing, s.tornadoSwing);
 
       els.useExpFixed.checked = !!s.useExpFixed;
@@ -737,24 +715,6 @@
 
     $('btnSave').addEventListener('click', ()=>{ saveToLocal(); alert('Saved to this browser.'); });
     $('btnReset').addEventListener('click', ()=>{ localStorage.removeItem('amigo_pro_model'); location.reload(); });
-
-    // Scenarios A/B/C
-    function slotKey(){ return 'amigo_pro_scenario_'+$('scenarioSlot').value; }
-    function scenarioLabel(code){
-      const raw = localStorage.getItem('amigo_pro_scenario_'+code);
-      if(!raw) return code;
-      try{ const s = JSON.parse(raw); return s.scenarioName ? `${code}: ${s.scenarioName}` : code; }catch(e){ return code; }
-    }
-    $('btnScenarioSave').addEventListener('click', ()=>{
-      const snapshot = captureInputs();
-      localStorage.setItem(slotKey(), JSON.stringify(snapshot));
-      recalc();
-      alert('Scenario saved.');
-    });
-    $('btnScenarioLoad').addEventListener('click', ()=>{
-      const s = localStorage.getItem(slotKey());
-      if (s){ applyInputs(JSON.parse(s)); } else { alert('No scenario saved in that slot.'); }
-    });
 
     // Export CSV
     $('btnExportCSV').addEventListener('click', ()=>{
@@ -921,7 +881,7 @@
         let stored = null;
         try{ const raw = localStorage.getItem(key); if(raw) stored = JSON.parse(raw); }catch(e){}
         const prof = stored ? money(stored.profit||0) : '—';
-        const name = stored?.scenarioName || '';
+        const status = stored ? (stored.submitted ? 'Submitted' : 'Saved') : 'Not saved';
         const idSave = `save_${m}`, idLoad = `load_${m}`;
         const card = document.createElement('div');
         card.className = 'bg-slate-900/60 rounded-xl p-3';
@@ -930,7 +890,7 @@
             <div class="font-semibold">${monthName(m)}</div>
             <div class="mini muted mono">${prof}</div>
           </div>
-          <div class="mini muted mt-1 truncate" title="${name}">${name || '<no name>'}</div>
+          <div class="mini muted mt-1">${status}</div>
           <div class="flex gap-2 mt-2">
             <button id="${idSave}" class="btn flex-1">Save</button>
             <button id="${idLoad}" class="btn flex-1">Load</button>
@@ -940,10 +900,11 @@
         document.getElementById(idSave).addEventListener('click', ()=>{
           const model = captureInputs();
           const profit = compute().profit;
-          const payload = { scenarioName: model.scenarioName || '', model, profit, savedAt: new Date().toISOString() };
+          const payload = { model, profit, savedAt: new Date().toISOString(), submitted:false };
           localStorage.setItem(key, JSON.stringify(payload));
           renderMonthGrid(); // refresh preview
           updateMonthCompareChart();
+          updateMonthUI();
         });
         document.getElementById(idLoad).addEventListener('click', ()=>{
           const raw = localStorage.getItem(key);
@@ -951,6 +912,7 @@
           try{
             const snap = JSON.parse(raw);
             applyInputs(snap.model);
+            activeMonth = m; updateMonthUI();
           }catch(e){ alert('Corrupted snapshot.'); }
         });
       }
@@ -978,6 +940,93 @@
       }
       monthChart.update();
     }
+
+    // Month navigation and status
+    let activeMonth = new Date().getMonth()+1;
+
+    function loadMonthData(y, m){
+      const raw = localStorage.getItem(monthKey(y,m));
+      if(raw){
+        try{ const snap = JSON.parse(raw); applyInputs(snap.model, true); }catch(e){}
+      }
+    }
+
+    function updateMissingMonths(){
+      const y = Number(els.snapYear.value);
+      const now = new Date();
+      const limit = (now.getFullYear()===y) ? now.getMonth()+1 : 12;
+      const missing = [];
+      for(let m=1;m<=limit;m++){
+        const raw = localStorage.getItem(monthKey(y,m));
+        if(!raw){ missing.push(monthName(m)); }
+        else{
+          try{ const snap = JSON.parse(raw); if(!snap.submitted) missing.push(monthName(m)); }catch(e){ missing.push(monthName(m)); }
+        }
+      }
+      els.missingMonths.textContent = missing.length ? missing.join(', ') : 'None';
+    }
+
+    function renderProjections(){
+      const y = Number(els.snapYear.value);
+      const now = new Date();
+      const start = (now.getFullYear()===y) ? now.getMonth()+2 : 1;
+      let html = '';
+      for(let m=start;m<=12;m++){
+        const raw = localStorage.getItem(monthKey(y,m));
+        let info = '—';
+        if(raw){
+          try{ const snap = JSON.parse(raw); info = money(snap.profit||0); }catch(e){}
+        }
+        html += `<li>${monthName(m)}: ${info}</li>`;
+      }
+      els.projectionList.innerHTML = html || '<li>None</li>';
+    }
+
+    function updateMonthUI(){
+      const y = Number(els.snapYear.value);
+      els.currMonthLbl.textContent = monthName(activeMonth)+' '+y;
+      const raw = localStorage.getItem(monthKey(y,activeMonth));
+      if(raw){
+        try{ const snap = JSON.parse(raw); els.monthStatus.textContent = snap.submitted ? 'Submitted' : 'Saved (not submitted)'; }catch(e){ els.monthStatus.textContent = 'Corrupted data'; }
+      }else{
+        els.monthStatus.textContent = 'No data saved';
+      }
+      updateMissingMonths();
+      renderProjections();
+    }
+
+    els.prevMonth.addEventListener('click', ()=>{
+      if(activeMonth>1){ activeMonth--; loadMonthData(Number(els.snapYear.value), activeMonth); recalc(); updateMonthUI(); }
+    });
+    els.nextMonth.addEventListener('click', ()=>{
+      if(activeMonth<12){ activeMonth++; loadMonthData(Number(els.snapYear.value), activeMonth); recalc(); updateMonthUI(); }
+    });
+    els.btnSaveMonth.addEventListener('click', ()=>{
+      const y = Number(els.snapYear.value);
+      const key = monthKey(y, activeMonth);
+      const model = captureInputs();
+      const profit = compute().profit;
+      const payload = { model, profit, savedAt:new Date().toISOString(), submitted:false };
+      localStorage.setItem(key, JSON.stringify(payload));
+      renderMonthGrid();
+      updateMonthCompareChart();
+      updateMonthUI();
+      alert('Month saved.');
+    });
+    els.btnSubmitMonth.addEventListener('click', ()=>{
+      const y = Number(els.snapYear.value);
+      const key = monthKey(y, activeMonth);
+      const raw = localStorage.getItem(key);
+      if(!raw){ alert('Save month first.'); return; }
+      try{
+        const snap = JSON.parse(raw);
+        snap.submitted = true;
+        localStorage.setItem(key, JSON.stringify(snap));
+        renderMonthGrid();
+        updateMonthCompareChart();
+        updateMonthUI();
+      }catch(e){ alert('Cannot submit.'); }
+    });
 
     /* ========= UI helpers ========= */
     function clampManualStates(){
@@ -1020,7 +1069,6 @@
         $('nonFoodPctLbl').textContent = pct(els.nonFoodPctN.value); $('salesTaxLbl').textContent = pct(els.salesTaxN.value); $('lbdLbl').textContent = pct(els.lbdN.value); $('ccRateLbl').textContent = pct(els.ccRateN.value); $('ccShareLbl').textContent = pct(els.ccShareN.value);
         $('fohLbl').textContent = money(els.fohN.value,2); $('bohLbl').textContent = money(els.bohN.value,2); $('mgrLbl').textContent = money(els.mgrN.value,2);
         $('weeklyPayrollTaxLbl').textContent = money(els.weeklyPayrollTaxN.value,2); $('payrollPeriodsLbl').textContent = String(els.payrollPeriodsN.value);
-        $('targetLbl').textContent = money(els.targetProfitN.value);
 
         const x = compute();
 
@@ -1079,16 +1127,6 @@
         tornadoChart.data.datasets[1].data = items.map(v=>v.plus);
         tornadoChart.update();
 
-        // Scenario compare (show names if saved)
-        compareChart.data.labels = ['Current', scenarioLabel('A'), scenarioLabel('B'), scenarioLabel('C')];
-        function profitOfSlot(code){
-          const s = localStorage.getItem('amigo_pro_scenario_'+code);
-          if(!s) return 0;
-          try{ return computeProfitWith(JSON.parse(s)); }catch(e){ return 0; }
-        }
-        compareChart.data.datasets[0].data = [x.profit, profitOfSlot('A'), profitOfSlot('B'), profitOfSlot('C')];
-        compareChart.update();
-
         // Lists
         $('revList').innerHTML = `
           <li>Beverage: <span class="float-right">${money(x.rev.beverage,2)}</span></li>
@@ -1113,17 +1151,8 @@
       } finally { inRecalc = false; }
     }
 
-    // Goal Seek
-    $('btnSolve').addEventListener('click', ()=>{
-      const x = compute(); const target = Number(els.targetProfitN.value||0);
-      const denom = 1 - x.varRatio; if (denom <= 0){ els.solveText.textContent = 'Cannot solve: variable cost ratio ≥ 1.'; return; }
-      const neededSales = (target + x.fixedPlusPayroll) / denom;
-      els.solveText.textContent = `Required sales: ${money(neededSales)} (at current mix & costs)`;
-      els.salesN.value = Math.round(neededSales/100)*100; els.sales.value = els.salesN.value; autosizeWide(els.salesN); recalc();
-    });
-
-    // Autosave
-    document.addEventListener('input', ()=>{ saveToLocal(); }, { passive:true });
+      // Autosave
+      document.addEventListener('input', ()=>{ saveToLocal(); }, { passive:true });
 
     // Tornado bulk buttons
     $('btnTornadoAll').addEventListener('click', ()=>{ setSelectedTornadoKeys(new Set(tornadoDefs.map(d=>d.key))); saveToLocal(); recalc(); });
@@ -1136,7 +1165,7 @@
     });
 
     // Month UI
-    els.snapYear?.addEventListener('change', ()=>{ renderMonthGrid(); updateMonthCompareChart(); });
+    els.snapYear?.addEventListener('change', ()=>{ renderMonthGrid(); updateMonthCompareChart(); loadMonthData(Number(els.snapYear.value), activeMonth); updateMonthUI(); });
 
     // Init
     function init(){
@@ -1150,6 +1179,8 @@
       autosizeAllWide();
       initYears();
       renderMonthGrid();
+      loadMonthData(Number(els.snapYear.value), activeMonth);
+      updateMonthUI();
       recalc();
       resizeCharts();
       window.addEventListener('resize', resizeCharts, { passive:true });
