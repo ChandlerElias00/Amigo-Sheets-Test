@@ -334,40 +334,65 @@
           </details>
         </div>
 
-        <!-- Scenario & Monthly Snapshots -->
+        <!-- Monthly Snapshots -->
         <div class="card">
           <details open>
-            <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
+<details open>
+  <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
 
-            <div class="mt-4 grid md:grid-cols-2 gap-4">
-              <div>
-                <div class="ctl">
-                  <label class="flex justify-between mb-1"><span>Target Profit ($)</span><span id="targetLbl">$0</span></label>
-                  <div class="pair">
-                    <input id="targetProfit" type="range" min="-50000" max="200000" step="500" value="0">
-                    <input id="targetProfitN" type="number" min="-50000" max="200000" step="500" value="0" class="bg-slate-800 rounded-xl px-3 py-2 num-wide"/>
-                  </div>
-                </div>
-                <button id="btnSolve" class="btn w-full mt-2">Solve Required Sales</button>
-                <div class="text-sm text-slate-400 mt-2" id="solveText"></div>
+  <div class="mt-4">
+    <div class="flex items-center gap-2">
+      <button id="prevMonth" class="btn px-3">◀</button>
+      <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+      <button id="nextMonth" class="btn px-3">▶</button>
+    </div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+      <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+    </div>
+    <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSave" class="btn flex-1">Save Model</button>
+      <button id="btnReset" class="btn flex-1">Reset Model</button>
+    </div>
+    <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+  </div>
+
+
+            <div class="mt-4">
+              <div class="flex items-center gap-2">
+                <button id="prevMonth" class="btn px-3">◀</button>
+                <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+                <button id="nextMonth" class="btn px-3">▶</button>
               </div>
-              <div>
-                <div class="flex items-center gap-2 mt-1">
-                  <button id="prevMonth" class="btn px-3">◀</button>
-                  <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
-                  <button id="nextMonth" class="btn px-3">▶</button>
-                </div>
-                <div class="flex gap-2 mt-2">
-                  <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
-                  <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
-                </div>
-                <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
-                <div class="flex gap-2 mt-2">
-                  <button id="btnSave" class="btn flex-1">Save Model</button>
-                  <button id="btnReset" class="btn flex-1">Reset Model</button>
-                </div>
-                <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+<details open>
+  <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
+
+  <div class="mt-4">
+    <div class="flex items-center gap-2">
+      <button id="prevMonth" class="btn px-3">◀</button>
+      <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+      <button id="nextMonth" class="btn px-3">▶</button>
+    </div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+      <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+    </div>
+    <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSave" class="btn flex-1">Save Model</button>
+      <button id="btnReset" class="btn flex-1">Reset Model</button>
+    </div>
+    <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+  </div>
+
               </div>
+              <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+              <div class="flex gap-2 mt-2">
+                <button id="btnSave" class="btn flex-1">Save Model</button>
+                <button id="btnReset" class="btn flex-1">Reset Model</button>
+              </div>
+              <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
             </div>
 
             <hr class="border-slate-700 my-4" />
@@ -664,9 +689,26 @@
 
       // Model / months / snapshots
       btnSave: $('btnSave'), btnReset: $('btnReset'), btnExportCSV: $('btnExportCSV'),
-      targetProfit: $('targetProfit'), targetProfitN: $('targetProfitN'), targetLbl: $('targetLbl'), btnSolve: $('btnSolve'), solveText: $('solveText'),
-      prevMonth: $('prevMonth'), nextMonth: $('nextMonth'), currMonthLbl: $('currentMonth'), btnSaveMonth: $('btnSaveMonth'), btnSubmitMonth: $('btnSubmitMonth'), monthStatus: $('monthStatus'),
-      snapYear: $('snapYear'), monthGrid: $('monthGrid'), missingMonths: $('missingMonths'), projectionList: $('projectionList'),
+<details open>
+  <summary><span class="twist"></span><span class="font-semibold">Goal Seek & Monthly Data</span></summary>
+
+  <div class="mt-4">
+    <div class="flex items-center gap-2">
+      <button id="prevMonth" class="btn px-3">◀</button>
+      <div id="currentMonth" class="flex-1 text-center font-semibold"></div>
+      <button id="nextMonth" class="btn px-3">▶</button>
+    </div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSaveMonth" class="btn flex-1">Save Month</button>
+      <button id="btnSubmitMonth" class="btn flex-1">Submit Month</button>
+    </div>
+    <div class="text-sm text-slate-400 mt-2" id="monthStatus"></div>
+    <div class="flex gap-2 mt-2">
+      <button id="btnSave" class="btn flex-1">Save Model</button>
+      <button id="btnReset" class="btn flex-1">Reset Model</button>
+    </div>
+    <button id="btnExportCSV" class="btn w-full mt-2">Export CSV</button>
+  </div>
 
       // Tornado
       tornadoSwing: $('tornadoSwing'), tornadoSwingN: $('tornadoSwingN'), tornadoSwingLbl: $('tornadoSwingLbl'),
@@ -678,7 +720,7 @@
       ['cogBev','cogBevN'], ['cogBeer','cogBeerN'], ['cogLiq','cogLiqN'], ['cogFood','cogFoodN'],
       ['nonFoodPct','nonFoodPctN'], ['salesTax','salesTaxN'], ['lbd','lbdN'], ['ccRate','ccRateN'], ['ccShare','ccShareN'],
       ['fixedEss','fixedEssN'], ['fixedNon','fixedNonN'], ['foh','fohN'], ['boh','bohN'], ['mgr','mgrN'],
-      ['weeklyPayrollTax','weeklyPayrollTaxN'], ['payrollPeriods','payrollPeriodsN'], ['targetProfit','targetProfitN'],
+      ['weeklyPayrollTax','weeklyPayrollTaxN'], ['payrollPeriods','payrollPeriodsN'],
       ['tornadoSwing','tornadoSwingN']
     ].forEach(([r, n]) => bindPair(els[r], els[n], recalc));
 
@@ -693,7 +735,6 @@
         fees:{ ccRate:els.ccRateN.value, ccShare:els.ccShareN.value },
         fixed:{ ess:els.fixedEssN.value, non:els.fixedNonN.value },
         labor:{ foh:els.fohN.value, boh:els.bohN.value, mgr:els.mgrN.value, includeManagers: els.includeManagers.checked, weeklyTax: els.weeklyPayrollTaxN.value, cycles: els.payrollPeriodsN.value },
-        targetProfit: els.targetProfitN.value,
         tornadoSwing: els.tornadoSwingN.value,
         tornadoKeys: Array.from(getSelectedTornadoKeys()),
         useExpFixed: els.useExpFixed.checked,
@@ -713,7 +754,6 @@
       els.includeManagers.checked = s.labor?.includeManagers ?? els.includeManagers.checked;
       set(els.weeklyPayrollTaxN, els.weeklyPayrollTax, s.labor?.weeklyTax);
       set(els.payrollPeriodsN, els.payrollPeriods, s.labor?.cycles);
-      set(els.targetProfitN, els.targetProfit, s.targetProfit);
       set(els.tornadoSwingN, els.tornadoSwing, s.tornadoSwing);
 
       els.useExpFixed.checked = !!s.useExpFixed;
@@ -1085,7 +1125,6 @@
         $('nonFoodPctLbl').textContent = pct(els.nonFoodPctN.value); $('salesTaxLbl').textContent = pct(els.salesTaxN.value); $('lbdLbl').textContent = pct(els.lbdN.value); $('ccRateLbl').textContent = pct(els.ccRateN.value); $('ccShareLbl').textContent = pct(els.ccShareN.value);
         $('fohLbl').textContent = money(els.fohN.value,2); $('bohLbl').textContent = money(els.bohN.value,2); $('mgrLbl').textContent = money(els.mgrN.value,2);
         $('weeklyPayrollTaxLbl').textContent = money(els.weeklyPayrollTaxN.value,2); $('payrollPeriodsLbl').textContent = String(els.payrollPeriodsN.value);
-        $('targetLbl').textContent = money(els.targetProfitN.value);
 
         const x = compute();
 
@@ -1168,17 +1207,8 @@
       } finally { inRecalc = false; }
     }
 
-    // Goal Seek
-    $('btnSolve').addEventListener('click', ()=>{
-      const x = compute(); const target = Number(els.targetProfitN.value||0);
-      const denom = 1 - x.varRatio; if (denom <= 0){ els.solveText.textContent = 'Cannot solve: variable cost ratio ≥ 1.'; return; }
-      const neededSales = (target + x.fixedPlusPayroll) / denom;
-      els.solveText.textContent = `Required sales: ${money(neededSales)} (at current mix & costs)`;
-      els.salesN.value = Math.round(neededSales/100)*100; els.sales.value = els.salesN.value; autosizeWide(els.salesN); recalc();
-    });
-
-    // Autosave
-    document.addEventListener('input', ()=>{ saveToLocal(); }, { passive:true });
+      // Autosave
+      document.addEventListener('input', ()=>{ saveToLocal(); }, { passive:true });
 
     // Tornado bulk buttons
     $('btnTornadoAll').addEventListener('click', ()=>{ setSelectedTornadoKeys(new Set(tornadoDefs.map(d=>d.key))); saveToLocal(); recalc(); });
